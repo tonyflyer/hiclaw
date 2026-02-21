@@ -110,7 +110,7 @@ bash -c 'source /opt/hiclaw/scripts/lib/container-api.sh && container_api_availa
 ### 7. Matrix 会话过期检查（每日一次）
 
 ```bash
-bash /opt/hiclaw/agent/skills/worker-management/scripts/session-keepalive.sh --action scan
+bash /opt/hiclaw/scripts/session-keepalive.sh --action scan
 ```
 
 - 若输出 `SCAN_RESULT: skipped`：跳过（距上次扫描不足 23 小时）

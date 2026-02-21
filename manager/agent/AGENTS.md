@@ -373,7 +373,7 @@ You are free to edit `HEARTBEAT.md` with a short checklist or reminders. Keep it
 When the human admin responds to a session expiry notification and specifies which rooms to keep alive, for each room run:
 
 ```bash
-bash /opt/hiclaw/agent/skills/worker-management/scripts/session-keepalive.sh --action keepalive --room <room_id>
+bash /opt/hiclaw/scripts/session-keepalive.sh --action keepalive --room <room_id>
 ```
 
 The script handles everything automatically:

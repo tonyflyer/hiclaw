@@ -19,7 +19,7 @@ MATRIX_TOKEN="${MANAGER_MATRIX_TOKEN:-}"
 REGISTRY_FILE="${HOME}/manager-workspace/workers-registry.json"
 LIFECYCLE_FILE="${HOME}/manager-workspace/worker-lifecycle.json"
 LAST_SCAN_FILE="${HOME}/manager-workspace/.session-scan-last-run"
-SCRIPTS_DIR="$(cd "$(dirname "$0")" && pwd)"
+LIFECYCLE_SCRIPT="/opt/hiclaw/agent/skills/worker-management/scripts/lifecycle-worker.sh"
 
 # Must match openclaw.json session.resetByChannel.matrix.idleMinutes
 IDLE_MINUTES=10080        # 7 days
@@ -171,7 +171,7 @@ action_keepalive() {
         fi
         if [ "$container_status" = "stopped" ] || [ "$container_status" = "exited" ]; then
             _log "Worker $worker_name is stopped — waking up"
-            bash "${SCRIPTS_DIR}/lifecycle-worker.sh" --action start --worker "$worker_name" || true
+            bash "${LIFECYCLE_SCRIPT}" --action start --worker "$worker_name" || true
             woke_any=true
         fi
     done <<< "$members"
