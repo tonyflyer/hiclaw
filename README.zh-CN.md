@@ -58,10 +58,18 @@ Set-ExecutionPolicy Bypass -Scope Process -Force; Invoke-Expression ((New-Object
 
 **资源需求**：Docker 虚拟机至少需要分配 2 核 CPU 和 4 GB 内存。Docker Desktop 用户可在 Settings → Resources 中调整。
 
-### 非交互式安装
+### 升级
+
+重新执行安装脚本即可原地升级，数据和配置会保留。默认升级到最新版本：
 
 ```bash
-HICLAW_LLM_API_KEY="sk-xxx" HICLAW_NON_INTERACTIVE=1 bash <(curl -sSL https://higress.ai/hiclaw/install.sh)
+bash <(curl -sSL https://higress.ai/hiclaw/install.sh)
+```
+
+指定版本升级：
+
+```bash
+HICLAW_VERSION=0.2.0 bash <(curl -sSL https://higress.ai/hiclaw/install.sh)
 ```
 
 ### 安装完成后

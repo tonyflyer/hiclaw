@@ -58,10 +58,18 @@ Set-ExecutionPolicy Bypass -Scope Process -Force; Invoke-Expression ((New-Object
 
 **Resource requirements**: The Docker VM needs at least 2 CPU cores and 4 GB RAM. In Docker Desktop, go to Settings → Resources to adjust.
 
-### Non-interactive install
+### Upgrade
+
+Run the same install script in-place to upgrade. Your data and config are preserved. Upgrades to the latest version by default:
 
 ```bash
-HICLAW_LLM_API_KEY="sk-xxx" HICLAW_NON_INTERACTIVE=1 bash <(curl -sSL https://higress.ai/hiclaw/install.sh)
+bash <(curl -sSL https://higress.ai/hiclaw/install.sh)
+```
+
+To upgrade to a specific version:
+
+```bash
+HICLAW_VERSION=0.2.0 bash <(curl -sSL https://higress.ai/hiclaw/install.sh)
 ```
 
 ### After install
