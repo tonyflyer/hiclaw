@@ -854,9 +854,11 @@ prompt() {
             eval "export ${var_name}='${default_value}'"
             log "$(msg prompt.default "${var_name}" "${default_value}")"
             return
-        else
+        elif [ "${HICLAW_NON_INTERACTIVE}" = "1" ]; then
+            # Only hard-error in fully non-interactive mode, not quickstart
             error "$(msg prompt.required "${var_name}")"
         fi
+        # quickstart + no default: fall through to interactive prompt below
     fi
 
     if [ -n "${default_value}" ]; then

@@ -627,9 +627,11 @@ function Read-Prompt {
         elseif ($Optional) {
             return ""
         }
-        else {
+        elseif ($script:HICLAW_NON_INTERACTIVE) {
+            # Only hard-error in fully non-interactive mode, not quickstart
             Write-Error (Get-Msg "prompt.required" -f $VarName)
         }
+        # quickstart + no default + not optional: fall through to interactive prompt
     }
 
     # Interactive prompt
