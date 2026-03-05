@@ -6,6 +6,7 @@
 - [如何主动指挥 Worker](#如何主动指挥-worker)
 - [如何切换 Manager 的模型](#如何切换-manager-的模型)
 - [如何切换 Worker 的模型](#如何切换-worker-的模型)
+- [HiClaw 支持发送和接收文件吗](#hiclaw-支持发送和接收文件吗)
 - [为什么 Manager/Worker 一直显示"输入中"](#为什么-managerworker-一直显示输入中)
 - [在房间里和 Manager 聊天没有响应或返回错误状态码](#在房间里和-manager-聊天没有响应或返回错误状态码)
 
@@ -100,6 +101,14 @@ http://<局域网IP>:18080
 **创建后修改**：随时告诉 Manager 切换某个 Worker 的模型，例如"把 alice 的模型切换为 `claude-3-5-sonnet`"，Manager 会自动更新该 Worker 的配置。
 
 切换前请确保 Higress 的 `default-ai-route` 已配置好目标模型名到对应供应商的路由。
+
+---
+
+## HiClaw 支持发送和接收文件吗
+
+**接收你发送的文件**：支持。在 Element Web 中点击附件按钮上传文件，Manager 或 Worker 会收到 Matrix 媒体消息并可以读取其内容。
+
+**向你发送文件**：支持。当你要求 Manager（或 Worker）发送文件时——例如任务产物、生成的报告或它能访问的任意文件——它会将文件上传到 Matrix 媒体服务器，并以可下载附件的形式发送到房间中，你在 Element Web 里点击即可下载。
 
 ---
 

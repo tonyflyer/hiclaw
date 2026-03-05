@@ -6,6 +6,7 @@
 - [How to talk to a Worker directly](#how-to-talk-to-a-worker-directly)
 - [How to switch the Manager's model](#how-to-switch-the-managers-model)
 - [How to switch a Worker's model](#how-to-switch-a-workers-model)
+- [Does HiClaw support sending and receiving files](#does-hiclaw-support-sending-and-receiving-files)
 - [Why does Manager/Worker keep showing "typing"](#why-does-managerworker-keep-showing-typing)
 - [Manager not responding or returning error status codes](#manager-not-responding-or-returning-error-status-codes)
 
@@ -100,6 +101,14 @@ The process is similar to switching the Manager's model, and Manager handles it 
 **After creation**: Tell Manager at any time to switch a Worker's model, e.g. "Switch alice to use `claude-3-5-sonnet`." Manager will update the Worker's configuration accordingly.
 
 Make sure the Higress `default-ai-route` is already configured to route the target model name to the right provider before switching.
+
+---
+
+## Does HiClaw support sending and receiving files
+
+**Receiving files from you**: Yes. You can upload a file directly in Element Web (the attachment button), and Manager or Worker will receive it as a Matrix media message and can read its content.
+
+**Sending files to you**: Yes. When you ask Manager (or a Worker) to send you a file — such as a task output artifact, a generated report, or any file it has access to — it will upload the file to the Matrix media server and send it to the room as a downloadable attachment. You can then click to download it in Element Web.
 
 ---
 
