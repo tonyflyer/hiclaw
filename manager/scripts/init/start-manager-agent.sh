@@ -468,16 +468,32 @@ chmod +x /root/manager-workspace/update-openclaw.sh 2>/dev/null || true
 
 # ============================================================
 # Select OpenClaw: workspace version (persistent) vs image default
+# Only use workspace version if it is >= image version (prevent accidental downgrade)
 # ============================================================
 _WORKSPACE_OC="/root/manager-workspace/openclaw-runtime"
-_IMAGE_OC_VER=$(node -e "try{console.log(require('/opt/openclaw/package.json').version)}catch(e){console.log('unknown')}" 2>/dev/null || echo "unknown")
+_IMAGE_OC_VER=$(node -e "try{console.log(require('/opt/openclaw/package.json').version)}catch(e){console.log('0.0.0')}" 2>/dev/null || echo "0.0.0")
+
+# Version comparison helper: returns 0 if $1 >= $2 (semver / date-ver like 2026.3.8)
+_oc_ver_gte() {
+    # Strip leading 'v' from both sides
+    local a="${1#v}" b="${2#v}"
+    # Use sort -V (version sort); if a comes last or equals, a >= b
+    local winner
+    winner=$(printf '%s\n%s\n' "${a}" "${b}" | sort -V | tail -1)
+    [[ "${winner}" == "${a}" ]]
+}
 
 if [[ -f "${_WORKSPACE_OC}/openclaw.mjs" ]]; then
-    _WS_OC_VER=$(node -e "try{console.log(require('${_WORKSPACE_OC}/package.json').version)}catch(e){console.log('unknown')}" 2>/dev/null || echo "unknown")
-    log "OpenClaw: workspace v${_WS_OC_VER} detected (image: v${_IMAGE_OC_VER}) — using workspace version"
-    # Prepend workspace OpenClaw bin dir to PATH (same structure as image: packages/clawdbot/node_modules/.bin)
-    export PATH="${_WORKSPACE_OC}/packages/clawdbot/node_modules/.bin:${PATH}"
-    _OC_LAUNCH="node ${_WORKSPACE_OC}/openclaw.mjs"
+    _WS_OC_VER=$(node -e "try{console.log(require('${_WORKSPACE_OC}/package.json').version)}catch(e){console.log('0.0.0')}" 2>/dev/null || echo "0.0.0")
+    if _oc_ver_gte "${_WS_OC_VER}" "${_IMAGE_OC_VER}"; then
+        log "OpenClaw: workspace v${_WS_OC_VER} >= image v${_IMAGE_OC_VER} — using workspace version"
+        # Prepend workspace OpenClaw bin dir to PATH (same structure as image: packages/clawdbot/node_modules/.bin)
+        export PATH="${_WORKSPACE_OC}/packages/clawdbot/node_modules/.bin:${PATH}"
+        _OC_LAUNCH="node ${_WORKSPACE_OC}/openclaw.mjs"
+    else
+        log "OpenClaw: workspace v${_WS_OC_VER} < image v${_IMAGE_OC_VER} — workspace is OLDER, using image version (run update-openclaw.sh to upgrade)"
+        _OC_LAUNCH="openclaw"
+    fi
 else
     log "OpenClaw: image v${_IMAGE_OC_VER} (no workspace version found — run update-openclaw.sh to install one)"
     _OC_LAUNCH="openclaw"
