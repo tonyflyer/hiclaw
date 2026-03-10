@@ -276,7 +276,14 @@ case "${MODEL_NAME}" in
     *)
         export MODEL_CONTEXT_WINDOW=200000 MODEL_MAX_TOKENS=128000 ;;
 esac
-export MODEL_REASONING=true
+
+# Models that do NOT support reasoning (no thinking/CoT)
+case "${MODEL_NAME}" in
+    qwen2.5-*|llama-*|mistral-*|phi-*|gemma-*)
+        export MODEL_REASONING=false ;;
+esac
+
+export MODEL_REASONING="${MODEL_REASONING:-true}"
 log "Model: ${MODEL_NAME} (context=${MODEL_CONTEXT_WINDOW}, maxTokens=${MODEL_MAX_TOKENS}, reasoning=${MODEL_REASONING})"
 
 if [ -f /root/manager-workspace/openclaw.json ]; then
@@ -286,11 +293,13 @@ if [ -f /root/manager-workspace/openclaw.json ]; then
        --arg model "${MODEL_NAME}" \
        --argjson ctx "${MODEL_CONTEXT_WINDOW}" \
        --argjson max "${MODEL_MAX_TOKENS}" \
+       --argjson reasoning "${MODEL_REASONING}" \
        '.channels.matrix.accessToken = $token | .hooks.token = $key | .models.providers["hiclaw-gateway"].apiKey = $key
         | .models.providers["hiclaw-gateway"].models[0].id = $model
         | .models.providers["hiclaw-gateway"].models[0].name = $model
         | .models.providers["hiclaw-gateway"].models[0].contextWindow = $ctx
         | .models.providers["hiclaw-gateway"].models[0].maxTokens = $max
+        | .models.providers["hiclaw-gateway"].models[0].reasoning = $reasoning
         | .agents.defaults.model.primary = ("hiclaw-gateway/" + $model)' \
        /root/manager-workspace/openclaw.json > /tmp/openclaw.json.tmp && \
         mv /tmp/openclaw.json.tmp /root/manager-workspace/openclaw.json
@@ -306,6 +315,44 @@ else
     envsubst < /opt/hiclaw/configs/manager-openclaw.json.tmpl > /root/manager-workspace/openclaw.json
     _written_token=$(jq -r '.channels.matrix.accessToken' /root/manager-workspace/openclaw.json 2>/dev/null)
     log "Matrix token written from template (prefix: ${_written_token:0:10}...)"
+fi
+
+# ============================================================
+# Ensure exec-approvals allow the agent to execute commands
+# ============================================================
+EXEC_APPROVALS_FILE="/root/manager-workspace/.openclaw/exec-approvals.json"
+if [ ! -f "${EXEC_APPROVALS_FILE}" ]; then
+    log "Creating exec-approvals.json (security: full)..."
+    mkdir -p "$(dirname "${EXEC_APPROVALS_FILE}")"
+    cat > "${EXEC_APPROVALS_FILE}" << 'APPROVALS_EOF'
+{
+  "version": 1,
+  "socket": {},
+  "defaults": {
+    "security": "full",
+    "ask": "off",
+    "askFallback": "full",
+    "autoAllowSkills": true
+  },
+  "agents": {
+    "main": {
+      "security": "full",
+      "ask": "off",
+      "askFallback": "full",
+      "autoAllowSkills": true,
+      "allowlist": []
+    },
+    "*": {
+      "security": "full",
+      "ask": "off",
+      "askFallback": "full",
+      "autoAllowSkills": true,
+      "allowlist": []
+    }
+  }
+}
+APPROVALS_EOF
+    chmod 600 "${EXEC_APPROVALS_FILE}"
 fi
 
 # ============================================================

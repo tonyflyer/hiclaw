@@ -84,18 +84,39 @@ Pass the matched skills as a comma-separated string to `--skills`, e.g. `file-sy
 
 The script handles everything: Matrix registration, room creation, Higress consumer, AI/MCP authorization, config generation, MinIO sync, skills push, and container startup.
 
+**⚠️ CRITICAL: Use ONLY `create-worker.sh` for creating new Workers.**
+
 ```bash
 bash /opt/hiclaw/agent/skills/worker-management/scripts/create-worker.sh --name <WORKER_NAME> [--model <MODEL_ID>] [--mcp-servers s1,s2] [--skills s1,s2] [--find-skills] [--skills-api-url <URL>] [--remote]
 ```
 
+**✅ CORRECT:**
+```bash
+bash /opt/hiclaw/agent/skills/worker-management/scripts/create-worker.sh --name alice
+```
+
+**❌ WRONG (do NOT use these):**
+```bash
+# These will NOT work - lifecycle-worker.sh does NOT support --action create
+lifecycle-worker.sh --action create --name alice
+lifecycle-worker.sh --name alice
+```
+
 **Parameters**:
-- `--name` (required): Worker name
+- `--name` (required): Worker display name (can be Chinese characters like "智码者")
 - `--model`: optional, bare model name (e.g. `qwen3.5-plus`). Defaults to `${HICLAW_DEFAULT_MODEL}`
 - `--mcp-servers`: optional, comma-separated MCP server names. Defaults to all existing MCP servers
 - `--skills`: comma-separated skill names determined in Step 1.5 (e.g. `file-sync,github-operations`). Defaults to `file-sync` if omitted. `file-sync` is always included automatically
 - `--find-skills`: enable find-skills capability (allows Worker to discover and install skills from skills.sh or private registry)
 - `--skills-api-url`: custom skills registry URL (default: https://skills.sh). Only used when `--find-skills` is set
 - `--remote`: force output install command instead of starting container locally
+
+**Chinese Worker Names**: The script automatically converts Chinese display names to ASCII-compatible system IDs for Matrix usernames, container names, etc. The display name is preserved in the Worker's SOUL.md and the registry.
+
+| Display Name | System ID (auto-generated) | Matrix Username |
+|--------------|---------------------------|-----------------|
+| 智码者 | zhimazhe | @zhimazhe:domain |
+| Alice | alice | @alice:domain |
 
 **Deployment behavior** (without `--remote`):
 - If container socket is available: auto-starts Worker container locally

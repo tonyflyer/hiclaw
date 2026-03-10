@@ -48,14 +48,13 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
     rm -rf /var/lib/apt/lists/*
 
 # Clone, build, and optimize OpenClaw
-# 1. Clone with single branch to minimize .git size
+# Track official releases for stability and security updates
+# 1. Clone specific release tag to minimize .git size
 # 2. Install dependencies and build
 # 3. Remove unnecessary files (tests, .git, etc.) - keep all node_modules for extensions
-RUN git clone --depth 1 --single-branch \
-        https://github.com/johnlanni/openclaw.git /opt/openclaw && \
+RUN git clone --depth 1 --branch v2026.3.1 \
+        https://github.com/openclaw/openclaw.git /opt/openclaw && \
     cd /opt/openclaw && \
-    git fetch --depth 1 origin df5225e1fc310158f84f888b74ba2ea815190181 && \
-    git checkout df5225e1fc310158f84f888b74ba2ea815190181 && \
     pnpm config set registry ${NPM_REGISTRY} && \
     pnpm install && \
     pnpm build && \

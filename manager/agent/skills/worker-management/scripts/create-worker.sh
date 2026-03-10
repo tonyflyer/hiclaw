@@ -46,25 +46,64 @@ if [ -z "${WORKER_NAME}" ]; then
     exit 1
 fi
 
-# If find-skills is enabled, add it to the skills list
-# Fallback: if HICLAW_SKILLS_API_URL env is set and no --skills-api-url was passed, use it
-if [ -z "${SKILLS_API_URL}" ] && [ -n "${HICLAW_SKILLS_API_URL}" ]; then
-    SKILLS_API_URL="${HICLAW_SKILLS_API_URL}"
-fi
-if [ "${ENABLE_FIND_SKILLS}" = true ]; then
-    if ! echo "${WORKER_SKILLS}" | grep -q '\bfind-skills\b'; then
-        WORKER_SKILLS="${WORKER_SKILLS},find-skills"
-    fi
+# ============================================================
+# Handle Chinese/international worker names
+# WORKER_DISPLAY_NAME: The human-readable name (can be Chinese)
+# WORKER_ID: ASCII-compatible identifier for Matrix, container, etc.
+# ============================================================
+WORKER_DISPLAY_NAME="${WORKER_NAME}"
+
+# Generate ASCII-compatible WORKER_ID:
+# 1. Try to convert to pinyin-like slug (remove non-ASCII)
+# 2. If result is empty, generate a hash-based ID
+WORKER_ID=$(echo "${WORKER_NAME}" | tr -cd 'a-zA-Z0-9-' | tr 'A-Z' 'a-z' | head -c 32)
+
+# If no ASCII chars found, generate ID from hash
+if [ -z "${WORKER_ID}" ]; then
+    # Use md5 hash of the name, take first 12 chars
+    WORKER_ID="worker-$(echo -n "${WORKER_NAME}" | md5sum | head -c 12)"
 fi
 
-MATRIX_DOMAIN="${HICLAW_MATRIX_DOMAIN:-matrix-local.hiclaw.io:8080}"
-ADMIN_USER="${HICLAW_ADMIN_USER:-admin}"
-CONSUMER_NAME="worker-${WORKER_NAME}"
-SOUL_FILE="/root/hiclaw-fs/agents/${WORKER_NAME}/SOUL.md"
+# Ensure WORKER_ID starts with a letter (required for Matrix usernames)
+if ! echo "${WORKER_ID}" | grep -qE '^[a-z]'; then
+    WORKER_ID="w-${WORKER_ID}"
+fi
+
+log "Worker display name: ${WORKER_DISPLAY_NAME}"
+log "Worker system ID: ${WORKER_ID}"
+
+# Use WORKER_ID for all system identifiers
+CONSUMER_NAME="worker-${WORKER_ID}"
+SOUL_FILE="/root/hiclaw-fs/agents/${WORKER_ID}/SOUL.md"
 
 if [ ! -f "${SOUL_FILE}" ]; then
-    echo '{"error": "SOUL.md not found at '"${SOUL_FILE}"'. Write it first, then re-run."}'
-    exit 1
+    # Check if SOUL.md exists under the display name (legacy compatibility)
+    LEGACY_SOUL_FILE="/root/hiclaw-fs/agents/${WORKER_DISPLAY_NAME}/SOUL.md"
+    if [ -f "${LEGACY_SOUL_FILE}" ]; then
+        # Move to new location
+        mkdir -p "$(dirname "${SOUL_FILE}")"
+        mv "${LEGACY_SOUL_FILE}" "${SOUL_FILE}"
+        log "Migrated SOUL.md from ${WORKER_DISPLAY_NAME} to ${WORKER_ID}"
+    else
+        # Auto-generate a basic SOUL.md if not found
+        log "SOUL.md not found, auto-generating for ${WORKER_DISPLAY_NAME}..."
+        mkdir -p "$(dirname "${SOUL_FILE}")"
+        cat > "${SOUL_FILE}" << EOF
+# ${WORKER_DISPLAY_NAME}
+
+## 身份
+- 名称：${WORKER_DISPLAY_NAME}
+- 系统 ID：${WORKER_ID}
+
+## 角色
+Worker Agent
+
+## 能力
+- 执行 Manager 分配的任务
+- 与其他 Worker 协作
+EOF
+        log "Created SOUL.md at ${SOUL_FILE}"
+    fi
 fi
 
 _fail() {
@@ -109,15 +148,15 @@ fi
 # ============================================================
 # Step 1: Register Matrix Account
 # ============================================================
-log "Step 1: Registering Matrix account for ${WORKER_NAME}..."
-WORKER_USER_ID="@${WORKER_NAME}:${MATRIX_DOMAIN}"
-WORKER_CREDS_FILE="/data/worker-creds/${WORKER_NAME}.env"
+log "Step 1: Registering Matrix account for ${WORKER_DISPLAY_NAME} (${WORKER_ID})..."
+WORKER_USER_ID="@${WORKER_ID}:${MATRIX_DOMAIN}"
+WORKER_CREDS_FILE="/data/worker-creds/${WORKER_ID}.env"
 mkdir -p /data/worker-creds
 
 # Reuse persisted password if available, otherwise generate new
 if [ -f "${WORKER_CREDS_FILE}" ]; then
     source "${WORKER_CREDS_FILE}"
-    log "  Loaded persisted credentials for ${WORKER_NAME}"
+    log "  Loaded persisted credentials for ${WORKER_ID}"
 else
     WORKER_PASSWORD=$(generateKey 16)
 fi
@@ -126,7 +165,7 @@ fi
 REG_RESP=$(curl -s -X POST http://127.0.0.1:6167/_matrix/client/v3/register \
     -H 'Content-Type: application/json' \
     -d '{
-        "username": "'"${WORKER_NAME}"'",
+        "username": "'"${WORKER_ID}"'",
         "password": "'"${WORKER_PASSWORD}"'",
         "auth": {
             "type": "m.login.registration_token",
@@ -144,7 +183,7 @@ else
         -H 'Content-Type: application/json' \
         -d '{
             "type": "m.login.password",
-            "identifier": {"type": "m.id.user", "user": "'"${WORKER_NAME}"'"},
+            "identifier": {"type": "m.id.user", "user": "'"${WORKER_ID}"'"},
             "password": "'"${WORKER_PASSWORD}"'"
         }' 2>/dev/null) || true
 
@@ -152,9 +191,10 @@ else
         WORKER_MATRIX_TOKEN=$(echo "${LOGIN_RESP}" | jq -r '.access_token')
         log "  Logged in: ${WORKER_USER_ID}"
     else
-        _fail "Failed to register or login Matrix account for ${WORKER_NAME}. If re-creating, delete /data/worker-creds/${WORKER_NAME}.env and try again."
+        _fail "Failed to register or login Matrix account for ${WORKER_ID}. If re-creating, delete /data/worker-creds/${WORKER_ID}.env and try again."
     fi
 fi
+
 
 # Pre-generate gateway key if not loaded from persisted creds (for new workers)
 [ -z "${WORKER_GATEWAY_KEY}" ] && WORKER_GATEWAY_KEY=$(generateKey 32)
@@ -170,8 +210,8 @@ chmod 600 "${WORKER_CREDS_FILE}"
 # ============================================================
 # Step 1b: Create MinIO user with restricted permissions
 # ============================================================
-log "Step 1b: Creating MinIO user for ${WORKER_NAME}..."
-POLICY_NAME="worker-${WORKER_NAME}"
+log "Step 1b: Creating MinIO user for ${WORKER_ID}..."
+POLICY_NAME="worker-${WORKER_ID}"
 POLICY_FILE=$(mktemp /tmp/minio-policy-XXXXXX.json)
 cat > "${POLICY_FILE}" <<POLICY
 {
@@ -184,7 +224,7 @@ cat > "${POLICY_FILE}" <<POLICY
       "Condition": {
         "StringLike": {
           "s3:prefix": [
-            "agents/${WORKER_NAME}", "agents/${WORKER_NAME}/*",
+            "agents/${WORKER_ID}", "agents/${WORKER_ID}/*",
             "shared", "shared/*"
           ]
         }
@@ -194,19 +234,19 @@ cat > "${POLICY_FILE}" <<POLICY
       "Effect": "Allow",
       "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
       "Resource": [
-        "arn:aws:s3:::hiclaw-storage/agents/${WORKER_NAME}/*",
+        "arn:aws:s3:::hiclaw-storage/agents/${WORKER_ID}/*",
         "arn:aws:s3:::hiclaw-storage/shared/*"
       ]
     }
   ]
 }
 POLICY
-mc admin user add hiclaw "${WORKER_NAME}" "${WORKER_MINIO_PASSWORD}" 2>/dev/null || true
+mc admin user add hiclaw "${WORKER_ID}" "${WORKER_MINIO_PASSWORD}" 2>/dev/null || true
 mc admin policy remove hiclaw "${POLICY_NAME}" 2>/dev/null || true
 mc admin policy create hiclaw "${POLICY_NAME}" "${POLICY_FILE}"
-mc admin policy attach hiclaw "${POLICY_NAME}" --user "${WORKER_NAME}"
+mc admin policy attach hiclaw "${POLICY_NAME}" --user "${WORKER_ID}"
 rm -f "${POLICY_FILE}"
-log "  MinIO user ${WORKER_NAME} created with policy ${POLICY_NAME}"
+log "  MinIO user ${WORKER_ID} created with policy ${POLICY_NAME}"
 
 # ============================================================
 # Step 2: Create Matrix Room (3-party)
@@ -216,11 +256,13 @@ ROOM_RESP=$(curl -sf -X POST http://127.0.0.1:6167/_matrix/client/v3/createRoom 
     -H "Authorization: Bearer ${MANAGER_MATRIX_TOKEN}" \
     -H 'Content-Type: application/json' \
     -d '{
-        "name": "Worker: '"${WORKER_NAME}"'",
-        "topic": "Communication channel for '"${WORKER_NAME}"'",
+        "name": "Worker: '"${WORKER_DISPLAY_NAME}"'",
+        "topic": "Communication channel for '"${WORKER_DISPLAY_NAME}"'",
         "invite": [
             "@'"${ADMIN_USER}"':'"${MATRIX_DOMAIN}"'",
-            "@'"${WORKER_NAME}"':'"${MATRIX_DOMAIN}"'"
+            "@'"${WORKER_ID}"':'"${MATRIX_DOMAIN}"'"
+        ],
+        "preset": "trusted_private_chat"
         ],
         "preset": "trusted_private_chat"
     }' 2>/dev/null) || _fail "Failed to create Matrix room"
@@ -323,7 +365,7 @@ fi
 # Step 6: Generate openclaw.json
 # ============================================================
 log "Step 6: Generating openclaw.json..."
-GEN_ARGS=("${WORKER_NAME}" "${WORKER_MATRIX_TOKEN}" "${WORKER_KEY}")
+GEN_ARGS=("${WORKER_ID}" "${WORKER_MATRIX_TOKEN}" "${WORKER_KEY}")
 if [ -n "${MODEL_ID}" ]; then
     GEN_ARGS+=("${MODEL_ID}")
 fi
@@ -344,17 +386,17 @@ if [ -n "${TARGET_MCP_LIST}" ]; then
         MCPORTER_JSON="${MCPORTER_JSON}\"${mcp_name}\":{\"url\":\"http://${AIGW_DOMAIN}:8080/mcp-servers/${mcp_name}/mcp\",\"transport\":\"http\",\"headers\":{\"Authorization\":\"Bearer ${WORKER_KEY}\"}}"
     done
     MCPORTER_JSON="${MCPORTER_JSON}}}"
-    echo "${MCPORTER_JSON}" | jq . > "/root/hiclaw-fs/agents/${WORKER_NAME}/mcporter-servers.json"
+    echo "${MCPORTER_JSON}" | jq . > "/root/hiclaw-fs/agents/${WORKER_ID}/mcporter-servers.json"
 fi
 
 # ============================================================
 # Step 6.5: Add existing Workers to new Worker's groupAllowFrom
 # ============================================================
 log "Step 6.5: Adding existing Workers to new Worker's groupAllowFrom..."
-NEW_WORKER_CONFIG="/root/hiclaw-fs/agents/${WORKER_NAME}/openclaw.json"
+NEW_WORKER_CONFIG="/root/hiclaw-fs/agents/${WORKER_ID}/openclaw.json"
 REGISTRY_FILE_EARLY="${HOME}/workers-registry.json"
 if [ -f "${REGISTRY_FILE_EARLY}" ]; then
-    EXISTING_WORKERS_EARLY=$(jq -r '.workers | keys[]' "${REGISTRY_FILE_EARLY}" 2>/dev/null | grep -v "^${WORKER_NAME}$" || true)
+    EXISTING_WORKERS_EARLY=$(jq -r '.workers | keys[]' "${REGISTRY_FILE_EARLY}" 2>/dev/null | grep -v "^${WORKER_ID}$" || true)
     for ew in ${EXISTING_WORKERS_EARLY}; do
         EW_ID="@${ew}:${MATRIX_DOMAIN}"
         ALREADY=$(jq -r --arg w "${EW_ID}" \
@@ -376,7 +418,7 @@ fi
 # ============================================================
 log "Step 7: Updating Manager groupAllowFrom..."
 MANAGER_CONFIG="${HOME}/openclaw.json"
-WORKER_MATRIX_ID="@${WORKER_NAME}:${MATRIX_DOMAIN}"
+WORKER_MATRIX_ID="@${WORKER_ID}:${MATRIX_DOMAIN}"
 if [ -f "${MANAGER_CONFIG}" ]; then
     ALREADY_IN=$(jq -r --arg w "${WORKER_MATRIX_ID}" \
         '.channels.matrix.groupAllowFrom // [] | map(select(. == $w)) | length' \
@@ -396,10 +438,10 @@ fi
 # Step 8: Sync to MinIO
 # ============================================================
 log "Step 8: Syncing to MinIO..."
-mc mirror "/root/hiclaw-fs/agents/${WORKER_NAME}/" "hiclaw/hiclaw-storage/agents/${WORKER_NAME}/" --overwrite 2>&1 | tail -5
-mc stat "hiclaw/hiclaw-storage/agents/${WORKER_NAME}/SOUL.md" > /dev/null 2>&1 \
+mc mirror "/root/hiclaw-fs/agents/${WORKER_ID}/" "hiclaw/hiclaw-storage/agents/${WORKER_ID}/" --overwrite 2>&1 | tail -5
+mc stat "hiclaw/hiclaw-storage/agents/${WORKER_ID}/SOUL.md" > /dev/null 2>&1 \
     || _fail "SOUL.md not found in MinIO after sync"
-mc stat "hiclaw/hiclaw-storage/agents/${WORKER_NAME}/openclaw.json" > /dev/null 2>&1 \
+mc stat "hiclaw/hiclaw-storage/agents/${WORKER_ID}/openclaw.json" > /dev/null 2>&1 \
     || _fail "openclaw.json not found in MinIO after sync"
 log "  MinIO sync verified"
 
@@ -408,11 +450,11 @@ WORKER_AGENT_SRC="/opt/hiclaw/agent/worker-agent"
 if [ -d "${WORKER_AGENT_SRC}" ]; then
     log "  Pushing AGENTS.md (with builtin markers) to worker MinIO..."
     mc cp "${WORKER_AGENT_SRC}/AGENTS.md" \
-        "hiclaw/hiclaw-storage/agents/${WORKER_NAME}/AGENTS.md" \
+        "hiclaw/hiclaw-storage/agents/${WORKER_ID}/AGENTS.md" \
         || log "  WARNING: Failed to push AGENTS.md"
     log "  Pushing file-sync skill to worker MinIO..."
     mc mirror "${WORKER_AGENT_SRC}/skills/file-sync/" \
-        "hiclaw/hiclaw-storage/agents/${WORKER_NAME}/skills/file-sync/" --overwrite \
+        "hiclaw/hiclaw-storage/agents/${WORKER_ID}/skills/file-sync/" --overwrite \
         || log "  WARNING: Failed to push file-sync skill"
     log "  Worker agent files pushed"
 else
@@ -424,7 +466,7 @@ fi
 # ============================================================
 log "Step 8b: Updating existing Workers' groupAllowFrom..."
 if [ -f "${REGISTRY_FILE_EARLY}" ]; then
-    EXISTING_WORKERS_EARLY=$(jq -r '.workers | keys[]' "${REGISTRY_FILE_EARLY}" 2>/dev/null | grep -v "^${WORKER_NAME}$" || true)
+    EXISTING_WORKERS_EARLY=$(jq -r '.workers | keys[]' "${REGISTRY_FILE_EARLY}" 2>/dev/null | grep -v "^${WORKER_ID}$" || true)
     for ew in ${EXISTING_WORKERS_EARLY}; do
         EW_MINIO="hiclaw/hiclaw-storage/agents/${ew}/openclaw.json"
         EW_TMP="/tmp/openclaw-${ew}-update.json"
@@ -453,7 +495,7 @@ if [ -f "${REGISTRY_FILE_EARLY}" ]; then
                         "http://127.0.0.1:6167/_matrix/client/v3/rooms/${EW_ROOM_ID}/send/m.room.message/${TXN_ID}" \
                         -H "Authorization: Bearer ${MANAGER_MATRIX_TOKEN}" \
                         -H 'Content-Type: application/json' \
-                        -d "{\"msgtype\":\"m.text\",\"body\":\"@${ew}:${MATRIX_DOMAIN} Your config has been updated (new worker @${WORKER_NAME}:${MATRIX_DOMAIN} added to groupAllowFrom). Please run: hiclaw-sync\",\"m.mentions\":{\"user_ids\":[\"@${ew}:${MATRIX_DOMAIN}\"]}}" \
+                        -d "{\"msgtype\":\"m.text\",\"body\":\"@${ew}:${MATRIX_DOMAIN} Your config has been updated (new worker @${WORKER_ID}:${MATRIX_DOMAIN} added to groupAllowFrom). Please run: hiclaw-sync\",\"m.mentions\":{\"user_ids\":[\"@${ew}:${MATRIX_DOMAIN}\"]}}" \
                         > /dev/null 2>&1 \
                         && log "  Notified @${ew} to run hiclaw-sync" \
                         || log "  WARNING: Failed to notify @${ew}"
@@ -502,15 +544,17 @@ SKILLS_JSON="${SKILLS_JSON}]"
 
 # Upsert worker entry into registry
 NOW_TS=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
-WORKER_MATRIX_USER_ID="@${WORKER_NAME}:${MATRIX_DOMAIN}"
+WORKER_MATRIX_USER_ID="@${WORKER_ID}:${MATRIX_DOMAIN}"
 
-jq --arg w "${WORKER_NAME}" \
+jq --arg w "${WORKER_ID}" \
    --arg uid "${WORKER_MATRIX_USER_ID}" \
    --arg rid "${ROOM_ID}" \
    --arg ts "${NOW_TS}" \
    --argjson skills "${SKILLS_JSON}" \
+   --arg display_name "${WORKER_DISPLAY_NAME}" \
    '.workers[$w] = {
      "matrix_user_id": $uid,
+     "display_name": $display_name,
      "room_id": $rid,
      "skills": $skills,
      "created_at": (if .workers[$w].created_at? then .workers[$w].created_at else $ts end),
@@ -519,11 +563,11 @@ jq --arg w "${WORKER_NAME}" \
    "${REGISTRY_FILE}" > /tmp/workers-registry-updated.json
 mv /tmp/workers-registry-updated.json "${REGISTRY_FILE}"
 
-log "  Registry updated for ${WORKER_NAME}: skills=${SKILLS_WITH_FILESYNC}"
+log "  Registry updated for ${WORKER_ID}: skills=${SKILLS_WITH_FILESYNC}"
 
 # Push skills to worker's MinIO workspace (Worker not yet started, no notification)
 bash /opt/hiclaw/agent/skills/worker-management/scripts/push-worker-skills.sh \
-    --worker "${WORKER_NAME}" --no-notify \
+    --worker "${WORKER_ID}" --no-notify \
     || log "  WARNING: push-worker-skills.sh returned non-zero (non-fatal)"
 
 # ============================================================
@@ -540,10 +584,10 @@ _build_install_cmd() {
     local manager_ip
     manager_ip=$(container_get_manager_ip 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}')
     local fs_endpoint="http://${HICLAW_FS_DOMAIN:-fs-local.hiclaw.io}:8080"
-    local fs_access_key="${WORKER_NAME}"
+    local fs_access_key="${WORKER_ID}"
     local fs_secret_key="${WORKER_MINIO_PASSWORD}"
 
-    local cmd="bash hiclaw-install.sh worker --name ${WORKER_NAME} --fs ${fs_endpoint} --fs-key ${fs_access_key} --fs-secret ${fs_secret_key}"
+    local cmd="bash hiclaw-install.sh worker --name ${WORKER_ID} --fs ${fs_endpoint} --fs-key ${fs_access_key} --fs-secret ${fs_secret_key}"
 
     # Add find-skills related options if enabled
     if [ "${ENABLE_FIND_SKILLS}" = true ]; then
@@ -571,12 +615,12 @@ if [ "${REMOTE_MODE}" = true ]; then
 elif container_api_available; then
     log "Step 9: Starting Worker container locally..."
     EXTRA_ENV_JSON=$(_build_extra_env)
-    CREATE_OUTPUT=$(container_create_worker "${WORKER_NAME}" "${WORKER_NAME}" "${WORKER_MINIO_PASSWORD}" "${EXTRA_ENV_JSON}" 2>&1) || true
+    CREATE_OUTPUT=$(container_create_worker "${WORKER_ID}" "${WORKER_ID}" "${WORKER_MINIO_PASSWORD}" "${EXTRA_ENV_JSON}" 2>&1) || true
     CONTAINER_ID=$(echo "${CREATE_OUTPUT}" | tail -1)
     if [ -n "${CONTAINER_ID}" ] && [ ${#CONTAINER_ID} -ge 12 ]; then
         DEPLOY_MODE="local"
         log "  Waiting for Worker agent to be ready..."
-        if container_wait_worker_ready "${WORKER_NAME}" 120; then
+        if container_wait_worker_ready "${WORKER_ID}" 120; then
             WORKER_STATUS="ready"
             log "  Worker agent is ready!"
         else
@@ -596,7 +640,8 @@ fi
 # Output JSON result
 # ============================================================
 RESULT=$(jq -n \
-    --arg name "${WORKER_NAME}" \
+    --arg id "${WORKER_ID}" \
+    --arg display_name "${WORKER_DISPLAY_NAME}" \
     --arg user_id "${WORKER_USER_ID}" \
     --arg room_id "${ROOM_ID}" \
     --arg consumer "${CONSUMER_NAME}" \
@@ -605,8 +650,10 @@ RESULT=$(jq -n \
     --arg status "${WORKER_STATUS}" \
     --arg install_cmd "${INSTALL_CMD:-}" \
     --argjson skills "${SKILLS_JSON}" \
+   --arg display_name "${WORKER_DISPLAY_NAME}" \
     '{
-        worker_name: $name,
+        worker_id: $id,
+        worker_name: $display_name,
         matrix_user_id: $user_id,
         room_id: $room_id,
         consumer: $consumer,

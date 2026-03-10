@@ -83,6 +83,21 @@
     "token": "${MANAGER_GATEWAY_KEY}"
   },
 
+  "tools": {
+    "elevated": {
+      "enabled": true,
+      "allowFrom": {
+        "matrix": [
+          "@${HICLAW_ADMIN_USER}:${HICLAW_MATRIX_DOMAIN}"
+        ]
+      }
+    },
+    "exec": {
+      "host": "gateway",
+      "security": "full"
+    }
+  },
+
   "plugins": {
     "load": {
       "paths": ["/opt/openclaw/extensions/matrix"]
