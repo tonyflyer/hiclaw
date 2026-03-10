@@ -66,6 +66,18 @@ my_function() {
 }
 ```
 
+### To modify the Worker container (OpenClaw)
+- [worker/Dockerfile](worker/Dockerfile) -- build definition (Node.js 22 from build stage)
+- [worker/scripts/worker-entrypoint.sh](worker/scripts/worker-entrypoint.sh) -- startup logic
+
+### To modify the Worker container (CoPaw)
+- [copaw/Dockerfile](copaw/Dockerfile) -- build definition (Python 3.11)
+- [copaw/scripts/copaw-worker-entrypoint.sh](copaw/scripts/copaw-worker-entrypoint.sh) -- startup logic
+- [copaw/src/copaw_worker/](copaw/src/copaw_worker/) -- CoPaw worker Python package
+
+### To manage Worker containers via socket
+- [manager/scripts/lib/container-api.sh](manager/scripts/lib/container-api.sh) -- Docker/Podman REST API helpers for direct Worker creation
+
 ### Directory Conventions
 
 | Directory | Purpose | Key Files |
@@ -100,9 +112,21 @@ Each test file:
 - Combine related `RUN` commands to reduce layers
 - Label images with version and metadata
 
+## Technology Stack
+
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| AI Gateway | Higress (all-in-one) | LLM proxy, MCP Server hosting, consumer auth, route management |
+| Matrix Server | Tuwunel (conduwuit fork) | IM communication between Agents and Human |
+| Matrix Client | Element Web | Browser-based IM interface |
+| File System | MinIO + mc mirror | Centralized HTTP file storage with local sync |
+| Agent Framework | OpenClaw (fork) | Agent runtime with Matrix plugin, skills, heartbeat |
+| Agent Framework | CoPaw (Python) | Alternative Python-based agent runtime for Workers |
+| MCP CLI | mcporter | Worker calls MCP Server tools via CLI |
+
 ## Changelog Policy
 
-**CRITICAL**: Any change affecting built image content (modifications under `manager/`, `worker/`, or `openclaw-base/`) **must** be recorded in `changelog/current.md` before committing.
+Any change that affects the content of a built image — i.e. modifications under `manager/`, `worker/`, `copaw/`, or `openclaw-base/` — **must** be recorded in [`changelog/current.md`](changelog/current.md) before committing.
 
 Format:
 ```

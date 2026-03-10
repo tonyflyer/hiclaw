@@ -284,7 +284,16 @@ case "${MODEL_NAME}" in
 esac
 
 export MODEL_REASONING="${MODEL_REASONING:-true}"
-log "Model: ${MODEL_NAME} (context=${MODEL_CONTEXT_WINDOW}, maxTokens=${MODEL_MAX_TOKENS}, reasoning=${MODEL_REASONING})"
+
+# Resolve input modalities: only vision-capable models get "image"
+case "${MODEL_NAME}" in
+    gpt-5.4|gpt-5.3-codex|gpt-5-mini|gpt-5-nano|claude-opus-4-6|claude-sonnet-4-6|claude-haiku-4-5|qwen3.5-plus|kimi-k2.5)
+        export MODEL_INPUT='["text", "image"]' ;;
+    *)
+        export MODEL_INPUT='["text"]' ;;
+esac
+
+log "Model: ${MODEL_NAME} (context=${MODEL_CONTEXT_WINDOW}, maxTokens=${MODEL_MAX_TOKENS}, reasoning=${MODEL_REASONING}, input=${MODEL_INPUT})"
 
 if [ -f /root/manager-workspace/openclaw.json ]; then
     log "Manager openclaw.json already exists, updating dynamic fields only (preserving user customizations)..."
@@ -294,12 +303,14 @@ if [ -f /root/manager-workspace/openclaw.json ]; then
        --argjson ctx "${MODEL_CONTEXT_WINDOW}" \
        --argjson max "${MODEL_MAX_TOKENS}" \
        --argjson reasoning "${MODEL_REASONING}" \
+       --argjson input "${MODEL_INPUT}" \
        '.channels.matrix.accessToken = $token | .hooks.token = $key | .models.providers["hiclaw-gateway"].apiKey = $key
         | .models.providers["hiclaw-gateway"].models[0].id = $model
         | .models.providers["hiclaw-gateway"].models[0].name = $model
         | .models.providers["hiclaw-gateway"].models[0].contextWindow = $ctx
         | .models.providers["hiclaw-gateway"].models[0].maxTokens = $max
         | .models.providers["hiclaw-gateway"].models[0].reasoning = $reasoning
+        | .models.providers["hiclaw-gateway"].models[0].input = $input
         | .agents.defaults.model.primary = ("hiclaw-gateway/" + $model)' \
        /root/manager-workspace/openclaw.json > /tmp/openclaw.json.tmp && \
         mv /tmp/openclaw.json.tmp /root/manager-workspace/openclaw.json
@@ -425,7 +436,7 @@ if [ -f /root/manager-workspace/.upgrade-pending-worker-notify ]; then
             if [ -n "${_room_id}" ]; then
                 _worker_id="@${_worker_name}:${MATRIX_DOMAIN}"
                 _txn_id="upgrade-$(date +%s%N)"
-                _msg="@${_worker_name}:${MATRIX_DOMAIN} Manager upgraded builtin files (AGENTS.md, skills). Please run: hiclaw-sync"
+                _msg="@${_worker_name}:${MATRIX_DOMAIN} Manager upgraded builtin files (AGENTS.md, skills). Please use your file-sync skill to sync the latest config."
                 curl -sf -X PUT \
                     "http://127.0.0.1:6167/_matrix/client/v3/rooms/${_room_id}/send/m.room.message/${_txn_id}" \
                     -H "Authorization: Bearer ${MANAGER_TOKEN}" \

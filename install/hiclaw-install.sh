@@ -23,8 +23,9 @@
 #   HICLAW_WORKSPACE_DIR      Host directory for manager workspace (default: ~/hiclaw-manager)
 #   HICLAW_VERSION            Image tag            (default: latest)
 #   HICLAW_REGISTRY           Image registry       (default: auto-detected by timezone)
-#   HICLAW_INSTALL_MANAGER_IMAGE  Override manager image (e.g., local build)
-#   HICLAW_INSTALL_WORKER_IMAGE   Override worker image  (e.g., local build)
+#   HICLAW_INSTALL_MANAGER_IMAGE       Override manager image (e.g., local build)
+#   HICLAW_INSTALL_WORKER_IMAGE        Override worker image  (e.g., local build)
+#   HICLAW_INSTALL_COPAW_WORKER_IMAGE  Override copaw worker image (e.g., local build)
 #   HICLAW_PORT_GATEWAY       Host port for Higress gateway (default: 18080)
 #   HICLAW_PORT_CONSOLE       Host port for Higress console (default: 18001)
 #   HICLAW_PORT_ELEMENT_WEB   Host port for Element Web direct access (default: 18088)
@@ -286,18 +287,32 @@ msg() {
         "llm.alibaba.model.qwen.en") text="  2) qwen general  - General purpose LLM" ;;
         "llm.alibaba.model.select.zh") text="选择模型系列 [1/2]" ;;
         "llm.alibaba.model.select.en") text="Select model series [1/2]" ;;
+        "llm.codingplan.models_title.zh") text="选择 CodingPlan 默认模型:" ;;
+        "llm.codingplan.models_title.en") text="Select CodingPlan default model:" ;;
+        "llm.codingplan.model.qwen35plus.zh") text="  1) qwen3.5-plus  - 千问 3.5（速度最快）" ;;
+        "llm.codingplan.model.qwen35plus.en") text="  1) qwen3.5-plus  - Qwen 3.5 (fastest)" ;;
+        "llm.codingplan.model.glm5.zh") text="  2) glm-5  - 智谱 GLM-5（编程推荐）" ;;
+        "llm.codingplan.model.glm5.en") text="  2) glm-5  - Zhipu GLM-5 (recommended for coding)" ;;
+        "llm.codingplan.model.kimi.zh") text="  3) kimi-k2.5  - Moonshot Kimi K2.5" ;;
+        "llm.codingplan.model.kimi.en") text="  3) kimi-k2.5  - Moonshot Kimi K2.5" ;;
+        "llm.codingplan.model.minimax.zh") text="  4) MiniMax-M2.5  - MiniMax M2.5" ;;
+        "llm.codingplan.model.minimax.en") text="  4) MiniMax-M2.5  - MiniMax M2.5" ;;
+        "llm.codingplan.model.select.zh") text="选择模型 [1/2/3/4]" ;;
+        "llm.codingplan.model.select.en") text="Select model [1/2/3/4]" ;;
         "llm.provider.selected_codingplan.zh") text="  提供商: 阿里云百炼 CodingPlan" ;;
         "llm.provider.selected_codingplan.en") text="  Provider: Alibaba Cloud Bailian CodingPlan" ;;
         "llm.provider.selected_qwen.zh") text="  提供商: 阿里云百炼" ;;
         "llm.provider.selected_qwen.en") text="  Provider: Alibaba Cloud Bailian" ;;
         "llm.provider.selected_openai.zh") text="  提供商: %s（OpenAI 兼容）" ;;
         "llm.provider.selected_openai.en") text="  Provider: %s (OpenAI-compatible)" ;;
-        "llm.provider.invalid.zh") text="无效选择，默认使用阿里云百炼 CodingPlan" ;;
-        "llm.provider.invalid.en") text="Invalid choice, defaulting to Alibaba Cloud Bailian CodingPlan" ;;
+        "llm.provider.invalid.zh") text="无效选择: %s（请输入 1 或 2）" ;;
+        "llm.provider.invalid.en") text="Invalid choice: %s (please enter 1 or 2)" ;;
+        "llm.qwen.model_prompt.zh") text="默认模型 ID [qwen3.5-plus]" ;;
+        "llm.qwen.model_prompt.en") text="Default Model ID [qwen3.5-plus]" ;;
         "llm.openai.base_url_prompt.zh") text="Base URL（例如 https://api.openai.com/v1）" ;;
         "llm.openai.base_url_prompt.en") text="Base URL (e.g., https://api.openai.com/v1)" ;;
-        "llm.openai.model_prompt.zh") text="默认模型 ID [gpt-4o]" ;;
-        "llm.openai.model_prompt.en") text="Default Model ID [gpt-4o]" ;;
+        "llm.openai.model_prompt.zh") text="默认模型 ID [gpt-5.4]" ;;
+        "llm.openai.model_prompt.en") text="Default Model ID [gpt-5.4]" ;;
         "llm.openai.base_url_label.zh") text="  Base URL: %s" ;;
         "llm.openai.base_url_label.en") text="  Base URL: %s" ;;
         # --- Admin Credentials ---
@@ -381,6 +396,17 @@ msg() {
         "host_share.sharing.en") text="Sharing host directory: %s -> /host-share in container" ;;
         "host_share.not_exist.zh") text="警告: 主机目录 %s 不存在，跳过验证继续使用" ;;
         "host_share.not_exist.en") text="WARNING: Host directory %s does not exist, using without validation" ;;
+        # --- Default worker runtime ---
+        "worker_runtime.title.zh") text="--- 默认 Worker 运行时 ---" ;;
+        "worker_runtime.title.en") text="--- Default Worker Runtime ---" ;;
+        "worker_runtime.openclaw.zh") text="OpenClaw（Node.js 容器，~500MB 内存）" ;;
+        "worker_runtime.openclaw.en") text="OpenClaw (Node.js container, ~500MB RAM)" ;;
+        "worker_runtime.copaw.zh") text="CoPaw（Python 容器，~100MB 内存，默认关闭控制台，可跟 Manager 对话按需开启）" ;;
+        "worker_runtime.copaw.en") text="CoPaw (Python container, ~100MB RAM, console off by default, enable on demand via Manager)" ;;
+        "worker_runtime.choice.zh") text="请选择 [1/2]" ;;
+        "worker_runtime.choice.en") text="Enter choice [1/2]" ;;
+        "worker_runtime.selected.zh") text="默认 Worker 运行时: %s" ;;
+        "worker_runtime.selected.en") text="Default Worker runtime: %s" ;;
         # --- Secrets and config ---
         "install.generating_secrets.zh") text="正在生成密钥..." ;;
         "install.generating_secrets.en") text="Generating secrets..." ;;
@@ -432,12 +458,16 @@ msg() {
         "llm.openai.test.testing.en") text="Testing API connectivity..." ;;
         "llm.openai.test.ok.zh") text="✅ API 联通性测试通过" ;;
         "llm.openai.test.ok.en") text="✅ API connectivity test passed" ;;
-        "llm.openai.test.fail.zh") text="⚠️  API 联通性测试失败（HTTP %s）。响应内容:\n%s\n请根据以上错误信息联系您的模型服务商解决。安装将继续，但 Agent 可能无法正常工作。" ;;
-        "llm.openai.test.fail.en") text="⚠️  API connectivity test failed (HTTP %s). Response body:\n%s\nPlease contact your model provider to resolve the issue. Installation will continue, but the Agent may not work correctly." ;;
+        "llm.openai.test.fail.zh") text="⚠️  API 联通性测试失败（HTTP %s）。响应内容:\n%s\n请根据以上错误信息联系您的模型服务商解决。" ;;
+        "llm.openai.test.fail.en") text="⚠️  API connectivity test failed (HTTP %s). Response body:\n%s\nPlease contact your model provider to resolve the issue." ;;
         "llm.openai.test.fail.codingplan.zh") text="⚠️  提示: 请确认您的 API Key 已开通阿里云百炼 CodingPlan 服务。开通地址: https://www.aliyun.com/benefit/scene/codingplan" ;;
         "llm.openai.test.fail.codingplan.en") text="⚠️  Hint: Please verify that your API Key has CodingPlan service enabled on Alibaba Cloud Bailian. Enable at: https://www.aliyun.com/benefit/scene/codingplan" ;;
         "llm.openai.test.no_curl.zh") text="⚠️  未找到 curl，跳过 API 联通性测试" ;;
         "llm.openai.test.no_curl.en") text="⚠️  curl not found, skipping API connectivity test" ;;
+        "llm.openai.test.confirm.zh") text="是否仍要继续安装？[y/N] " ;;
+        "llm.openai.test.confirm.en") text="Continue with installation anyway? [y/N] " ;;
+        "llm.openai.test.aborted.zh") text="安装已中止。" ;;
+        "llm.openai.test.aborted.en") text="Installation aborted." ;;
         # --- OpenAI-compatible provider creation ---
         "install.openai_compat.missing.zh") text="警告: OpenAI Base URL 或 API Key 未设置，跳过提供商创建" ;;
         "install.openai_compat.missing.en") text="WARNING: OpenAI Base URL or API Key not set, skipping provider creation" ;;
@@ -550,6 +580,12 @@ msg() {
         # --- Prompt function messages ---
         "prompt.preset.zh") text="  %s = （已通过环境变量预设）" ;;
         "prompt.preset.en") text="  %s = (pre-set via env)" ;;
+        "prompt.upgrade_keep.zh") text="  %s = %s（当前值，回车保留 / 输入新值覆盖）" ;;
+        "prompt.upgrade_keep.en") text="  %s = %s (current value, press Enter to keep / type new value to change)" ;;
+        "prompt.upgrade_keep_secret.zh") text="  %s = %s（当前值，回车保留 / 输入新值覆盖）" ;;
+        "prompt.upgrade_keep_secret.en") text="  %s = %s (current value, press Enter to keep / type new value to change)" ;;
+        "prompt.upgrade_empty.zh") text="  %s = （未设置，回车跳过 / 输入新值设置）" ;;
+        "prompt.upgrade_empty.en") text="  %s = (not set, press Enter to skip / type new value to set)" ;;
         "prompt.default.zh") text="  %s = %s（默认）" ;;
         "prompt.default.en") text="  %s = %s (default)" ;;
         "prompt.required.zh") text="%s 是必需的（在非交互模式下通过环境变量设置）" ;;
@@ -624,6 +660,7 @@ detect_registry() {
 HICLAW_REGISTRY="${HICLAW_REGISTRY:-$(detect_registry)}"
 MANAGER_IMAGE="${HICLAW_INSTALL_MANAGER_IMAGE:-${HICLAW_REGISTRY}/higress/hiclaw-manager:${HICLAW_VERSION}}"
 WORKER_IMAGE="${HICLAW_INSTALL_WORKER_IMAGE:-${HICLAW_REGISTRY}/higress/hiclaw-worker:${HICLAW_VERSION}}"
+COPAW_WORKER_IMAGE="${HICLAW_INSTALL_COPAW_WORKER_IMAGE:-${HICLAW_REGISTRY}/higress/hiclaw-copaw-worker:${HICLAW_VERSION}}"
 
 # ============================================================
 # Wait for Manager agent to be ready
@@ -826,8 +863,33 @@ prompt() {
     local is_secret="${4:-false}"
 
     # If the variable is already set in the environment, use it silently
+    # In upgrade mode, show current value and let user change it
     eval "local current_value=\"\${${var_name}}\""
     if [ -n "${current_value}" ]; then
+        if [ "${HICLAW_UPGRADE}" = "1" ] && [ "${HICLAW_NON_INTERACTIVE}" != "1" ]; then
+            # Show masked value for secrets, full value otherwise
+            local display_value="${current_value}"
+            if [ "${is_secret}" = "true" ]; then
+                local len=${#current_value}
+                if [ "${len}" -le 8 ]; then
+                    display_value="****"
+                else
+                    display_value="${current_value:0:4}****${current_value: -4}"
+                fi
+            fi
+            log "$(msg prompt.upgrade_keep "${var_name}" "${display_value}")"
+            local new_value=""
+            if [ "${is_secret}" = "true" ]; then
+                read -s -p "${prompt_text}: " new_value
+                echo
+            else
+                read -p "${prompt_text}: " new_value
+            fi
+            if [ -n "${new_value}" ]; then
+                eval "export ${var_name}='${new_value}'"
+            fi
+            return
+        fi
         log "$(msg prompt.preset "${var_name}")"
         return
     fi
@@ -867,6 +929,7 @@ prompt() {
 
 # Prompt for an optional value (empty string is acceptable)
 # Skips prompt if variable is already defined in environment (even if empty)
+# In upgrade mode, shows current value and lets user change it.
 # In non-interactive mode, defaults to empty string.
 prompt_optional() {
     local var_name="$1"
@@ -876,6 +939,39 @@ prompt_optional() {
     # Check if variable is defined (even if set to empty string)
     eval "local _chk=\"\${${var_name}+x}\""
     if [ -n "${_chk}" ]; then
+        # In upgrade mode, show current value and let user change it
+        if [ "${HICLAW_UPGRADE}" = "1" ] && [ "${HICLAW_NON_INTERACTIVE}" != "1" ]; then
+            eval "local current_value=\"\${${var_name}}\""
+            local display_value="${current_value}"
+            if [ "${is_secret}" = "true" ] && [ -n "${current_value}" ]; then
+                local len=${#current_value}
+                if [ "${len}" -le 8 ]; then
+                    display_value="****"
+                else
+                    display_value="${current_value:0:4}****${current_value: -4}"
+                fi
+            fi
+            if [ -n "${current_value}" ]; then
+                if [ "${is_secret}" = "true" ]; then
+                    log "$(msg prompt.upgrade_keep_secret "${var_name}" "${display_value}")"
+                else
+                    log "$(msg prompt.upgrade_keep "${var_name}" "${display_value}")"
+                fi
+            else
+                log "$(msg prompt.upgrade_empty "${var_name}")"
+            fi
+            local new_value=""
+            if [ "${is_secret}" = "true" ]; then
+                read -s -p "${prompt_text}: " new_value
+                echo
+            else
+                read -p "${prompt_text}: " new_value
+            fi
+            if [ -n "${new_value}" ]; then
+                eval "export ${var_name}='${new_value}'"
+            fi
+            return
+        fi
         log "$(msg prompt.preset "${var_name}")"
         return
     fi
@@ -1066,6 +1162,7 @@ install_manager() {
 
         case "${UPGRADE_CHOICE}" in
             1|upgrade)
+                HICLAW_UPGRADE=1
                 log "$(msg install.existing.upgrading)"
 
                 # Warn about running containers
@@ -1246,14 +1343,51 @@ install_manager() {
                 case "${ALIBABA_MODEL_CHOICE}" in
                     2|qwen)
                         HICLAW_LLM_PROVIDER="qwen"
+                        HICLAW_OPENAI_BASE_URL=""
+                        echo ""
+                        read -p "$(msg llm.qwen.model_prompt): " HICLAW_DEFAULT_MODEL
                         HICLAW_DEFAULT_MODEL="${HICLAW_DEFAULT_MODEL:-qwen3.5-plus}"
                         log "$(msg llm.provider.selected_qwen)"
                         log "$(msg llm.model.label "${HICLAW_DEFAULT_MODEL}")"
                         ;;
                     *)
                         HICLAW_LLM_PROVIDER="openai-compat"
-                        HICLAW_OPENAI_BASE_URL="${HICLAW_OPENAI_BASE_URL:-https://coding.dashscope.aliyuncs.com/v1}"
-                        HICLAW_DEFAULT_MODEL="${HICLAW_DEFAULT_MODEL:-qwen3.5-plus}"
+                        HICLAW_OPENAI_BASE_URL="https://coding.dashscope.aliyuncs.com/v1"
+
+                        # Sub-menu: Select CodingPlan model
+                        echo ""
+                        echo "$(msg llm.codingplan.models_title)"
+                        echo "$(msg llm.codingplan.model.qwen35plus)"
+                        echo "$(msg llm.codingplan.model.glm5)"
+                        echo "$(msg llm.codingplan.model.kimi)"
+                        echo "$(msg llm.codingplan.model.minimax)"
+                        echo ""
+                        if [ "${HICLAW_QUICKSTART}" = "1" ]; then
+                            read -p "$(msg llm.codingplan.model.select) [1]: " CODINGPLAN_MODEL_CHOICE
+                            CODINGPLAN_MODEL_CHOICE="${CODINGPLAN_MODEL_CHOICE:-1}"
+                        else
+                            read -p "$(msg llm.codingplan.model.select): " CODINGPLAN_MODEL_CHOICE
+                            CODINGPLAN_MODEL_CHOICE="${CODINGPLAN_MODEL_CHOICE:-1}"
+                        fi
+
+                        case "${CODINGPLAN_MODEL_CHOICE}" in
+                            1|qwen3.5-plus)
+                                HICLAW_DEFAULT_MODEL="qwen3.5-plus"
+                                ;;
+                            2|glm-5)
+                                HICLAW_DEFAULT_MODEL="glm-5"
+                                ;;
+                            3|kimi-k2.5)
+                                HICLAW_DEFAULT_MODEL="kimi-k2.5"
+                                ;;
+                            4|MiniMax-M2.5)
+                                HICLAW_DEFAULT_MODEL="MiniMax-M2.5"
+                                ;;
+                            *)
+                                HICLAW_DEFAULT_MODEL="qwen3.5-plus"
+                                ;;
+                        esac
+
                         log "$(msg llm.provider.selected_codingplan)"
                         log "$(msg llm.model.label "${HICLAW_DEFAULT_MODEL}")"
                         ;;
@@ -1276,7 +1410,7 @@ install_manager() {
                 echo ""
                 read -p "$(msg llm.openai.base_url_prompt): " HICLAW_OPENAI_BASE_URL
                 read -p "$(msg llm.openai.model_prompt): " HICLAW_DEFAULT_MODEL
-                HICLAW_DEFAULT_MODEL="${HICLAW_DEFAULT_MODEL:-gpt-4o}"
+                HICLAW_DEFAULT_MODEL="${HICLAW_DEFAULT_MODEL:-gpt-5.4}"
                 log "$(msg llm.openai.base_url_label "${HICLAW_OPENAI_BASE_URL}")"
                 log "$(msg llm.model.label "${HICLAW_DEFAULT_MODEL}")"
                 log ""
@@ -1284,18 +1418,7 @@ install_manager() {
                 test_llm_connectivity "${HICLAW_OPENAI_BASE_URL}" "${HICLAW_LLM_API_KEY}" "${HICLAW_DEFAULT_MODEL}"
                 ;;
             *)
-                log "$(msg llm.provider.invalid)"
-                HICLAW_LLM_PROVIDER="openai-compat"
-                HICLAW_OPENAI_BASE_URL="${HICLAW_OPENAI_BASE_URL:-https://coding.dashscope.aliyuncs.com/v1}"
-                HICLAW_DEFAULT_MODEL="${HICLAW_DEFAULT_MODEL:-qwen3.5-plus}"
-                log "$(msg llm.provider.selected_codingplan)"
-                log "$(msg llm.model.label "${HICLAW_DEFAULT_MODEL}")"
-                log ""
-                log "$(msg llm.apikey_hint)"
-                log "$(msg llm.apikey_url)"
-                log ""
-                prompt HICLAW_LLM_API_KEY "$(msg llm.apikey_prompt)" "" "true"
-                test_llm_connectivity "${HICLAW_OPENAI_BASE_URL}" "${HICLAW_LLM_API_KEY}" "${HICLAW_DEFAULT_MODEL}" "$(msg llm.openai.test.fail.codingplan)"
+                error "$(msg llm.provider.invalid "${PROVIDER_CHOICE}")"
                 ;;
         esac
     fi
@@ -1400,6 +1523,36 @@ install_manager() {
     mkdir -p "${HICLAW_WORKSPACE_DIR}"
     log "$(msg workspace.dir_label "${HICLAW_WORKSPACE_DIR}")"
 
+    # Default Worker Runtime
+    log "$(msg worker_runtime.title)"
+    echo ""
+    echo "  1) $(msg worker_runtime.openclaw)"
+    echo "  2) $(msg worker_runtime.copaw)"
+    echo ""
+    if [ "${HICLAW_NON_INTERACTIVE}" = "1" ]; then
+        HICLAW_DEFAULT_WORKER_RUNTIME="${HICLAW_DEFAULT_WORKER_RUNTIME:-openclaw}"
+    elif [ "${HICLAW_UPGRADE}" = "1" ] && [ -n "${HICLAW_DEFAULT_WORKER_RUNTIME}" ]; then
+        log "$(msg prompt.upgrade_keep "HICLAW_DEFAULT_WORKER_RUNTIME" "${HICLAW_DEFAULT_WORKER_RUNTIME}")"
+        read -p "$(msg worker_runtime.choice): " _runtime_choice
+        if [ -n "${_runtime_choice}" ]; then
+            case "${_runtime_choice}" in
+                2) HICLAW_DEFAULT_WORKER_RUNTIME="copaw" ;;
+                *) HICLAW_DEFAULT_WORKER_RUNTIME="openclaw" ;;
+            esac
+        fi
+        unset _runtime_choice
+    elif [ -z "${HICLAW_DEFAULT_WORKER_RUNTIME+x}" ]; then
+        read -p "$(msg worker_runtime.choice): " _runtime_choice
+        _runtime_choice="${_runtime_choice:-1}"
+        case "${_runtime_choice}" in
+            2) HICLAW_DEFAULT_WORKER_RUNTIME="copaw" ;;
+            *) HICLAW_DEFAULT_WORKER_RUNTIME="openclaw" ;;
+        esac
+        unset _runtime_choice
+    fi
+    export HICLAW_DEFAULT_WORKER_RUNTIME
+    log "$(msg worker_runtime.selected "${HICLAW_DEFAULT_WORKER_RUNTIME}")"
+
     log ""
 
     # Generate secrets (only if not already set)
@@ -1457,8 +1610,12 @@ HICLAW_GITHUB_TOKEN=${HICLAW_GITHUB_TOKEN:-}
 # Skills Registry (optional, default: https://skills.sh)
 HICLAW_SKILLS_API_URL=${HICLAW_SKILLS_API_URL:-}
 
-# Worker image (for direct container creation)
+# Worker images (for direct container creation)
 HICLAW_WORKER_IMAGE=${WORKER_IMAGE}
+HICLAW_COPAW_WORKER_IMAGE=${COPAW_WORKER_IMAGE}
+
+# Default Worker runtime (openclaw | copaw)
+HICLAW_DEFAULT_WORKER_RUNTIME=${HICLAW_DEFAULT_WORKER_RUNTIME:-openclaw}
 
 # Higress WASM plugin image registry (auto-selected by timezone)
 HIGRESS_ADMIN_WASM_PLUGIN_IMAGE_REGISTRY=${HICLAW_REGISTRY}
@@ -1555,6 +1712,17 @@ EOF
     else
         log "$(msg install.image.pulling_worker "${WORKER_IMAGE}")"
         ${DOCKER_CMD} pull "${WORKER_IMAGE}"
+    fi
+    if echo "${COPAW_WORKER_IMAGE}" | grep -q "^${LOCAL_IMAGE_PREFIX}"; then
+        if ${DOCKER_CMD} image inspect "${COPAW_WORKER_IMAGE}" >/dev/null 2>&1; then
+            log "Copaw worker image exists: ${COPAW_WORKER_IMAGE}"
+        else
+            log "Pulling copaw worker image: ${COPAW_WORKER_IMAGE}"
+            ${DOCKER_CMD} pull "${COPAW_WORKER_IMAGE}" 2>/dev/null || log "Copaw worker image not available (optional)"
+        fi
+    else
+        log "Pulling copaw worker image: ${COPAW_WORKER_IMAGE}"
+        ${DOCKER_CMD} pull "${COPAW_WORKER_IMAGE}" 2>/dev/null || log "Copaw worker image not available (optional)"
     fi
 
     # Run Manager container
@@ -1767,6 +1935,14 @@ test_llm_connectivity() {
         echo -e "\033[33m$(msg llm.openai.test.fail "${_http_code}" "${_body}")\033[0m"
         if [ -n "${hint}" ]; then
             echo -e "\033[33m${hint}\033[0m"
+        fi
+        if [ "${HICLAW_NON_INTERACTIVE}" != "1" ]; then
+            local _confirm
+            read -p "$(msg llm.openai.test.confirm)" _confirm
+            if [ "${_confirm}" != "y" ] && [ "${_confirm}" != "Y" ]; then
+                log "$(msg llm.openai.test.aborted)"
+                exit 1
+            fi
         fi
     fi
 }

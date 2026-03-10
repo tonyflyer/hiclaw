@@ -1,4 +1,3 @@
-<a name="readme-top"></a>
 <h1 align="center">
     <img src="https://img.alicdn.com/imgextra/i3/O1CN01JLLvVU21EWyG90gbi_!!6000000006953-2-tps-2539-575.png" alt="HiClaw"  width="290" height="72.5">
   <br>
@@ -26,7 +25,8 @@ All communication happens in Matrix Rooms. You see everything, and can intervene
 
 ## News
 
-- **2026-03-04**: We officially open source HiClaw，an Agent Teams System. Read more on our [blog](https://github.com/higress-group/hiclaw/blob/main/blog/hiclaw-announcement.md).
+- **2026-03-10**: HiClaw 1.0.4 released with CoPaw Worker support — 80% less memory, local host mode for browser automation. Read more on our [blog](blog/hiclaw-1.0.4-release.md).
+- **2026-03-04**: We officially open source HiClaw, an Agent Teams System. Read more on our [blog](https://github.com/higress-group/hiclaw/blob/main/blog/hiclaw-announcement.md).
 
 
 ## Why HiClaw
@@ -197,7 +197,7 @@ Feel free to [open an issue](https://github.com/higress-group/hiclaw/issues) or 
 
 Currently, Workers run on OpenClaw which has relatively high memory usage. We plan to support alternative lightweight runtimes:
 
-- **CoPaw** — Lightweight agent runtime by AgentScope, supports local models (llama.cpp/MLX/Ollama) and multi-channel, lower memory footprint than OpenClaw
+- **CoPaw** ✅ **[Released in 1.0.4](blog/hiclaw-1.0.4-release.md)** — Lightweight agent runtime by AgentScope. Docker mode uses ~100MB (vs ~500MB for OpenClaw), plus local host mode for browser automation and local file access.
 - **ZeroClaw** — Rust-based ultra-lightweight runtime, 3.4MB binary, <10ms cold start, designed for edge and resource-constrained environments
 - **NanoClaw** — Minimal OpenClaw alternative, <4000 LOC, container-based isolation, built on Anthropic Agents SDK
 
@@ -269,7 +269,7 @@ make help  # All available targets
 - WeChat Group — scan to join:
 
 <p align="center">
-  <img src="https://img.alicdn.com/imgextra/i4/O1CN01OcQaeW22jxljbSKrs_!!6000000007157-2-tps-748-730.png" width="200" alt="WeChat Group" />
+  <img src="https://img.alicdn.com/imgextra/i1/O1CN01tTIeig1tQQKXGHvHV_!!6000000005896-2-tps-738-730.png" width="200" alt="WeChat Group" />
 </p>
 
 ## License

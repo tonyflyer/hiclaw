@@ -18,6 +18,7 @@
       "dm": {
         "policy": "allowlist",
         "allowFrom": [
+          "@manager:${HICLAW_MATRIX_DOMAIN}",
           "@${HICLAW_ADMIN_USER}:${HICLAW_MATRIX_DOMAIN}"
         ]
       },
@@ -46,7 +47,7 @@
             "reasoning": ${MODEL_REASONING},
             "contextWindow": ${MODEL_CONTEXT_WINDOW},
             "maxTokens": ${MODEL_MAX_TOKENS},
-            "input": ["text", "image"]
+            "input": ${MODEL_INPUT}
           }
         ]
       }

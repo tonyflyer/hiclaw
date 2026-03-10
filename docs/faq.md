@@ -11,6 +11,7 @@
 - [How to switch a Worker's model](#how-to-switch-a-workers-model)
 - [Does HiClaw support sending and receiving files](#does-hiclaw-support-sending-and-receiving-files)
 - [Why does Manager/Worker keep showing "typing"](#why-does-managerworker-keep-showing-typing)
+- [Manager/Worker not responding to messages](#managerworker-not-responding-to-messages)
 - [Manager not responding or returning error status codes](#manager-not-responding-or-returning-error-status-codes)
 - [HTTP 401: invalid access token or token expired](#http-401-invalid-access-token-or-token-expired)
 
@@ -181,6 +182,52 @@ docker exec -it <worker-name> ls .openclaw/agents/main/sessions/
 ```
 
 The `.jsonl` files in that directory are written by OpenClaw in real time and contain the full agent execution trace — LLM calls, tool use, reasoning steps, etc.
+
+---
+
+## Manager/Worker not responding to messages
+
+If Manager or Worker doesn't respond to your messages, check these common causes:
+
+### 1. Check if the agent is working
+
+**If there's no response and no "typing" indicator**, the agent is almost certainly **busy working**.
+
+OpenClaw limits the "typing" indicator to a maximum of **2 minutes**. If the agent's task takes longer than 2 minutes, the typing indicator stops showing even though the agent is still working.
+
+**How to confirm your message is queued**:
+- After sending a message, look for a small **"m" icon** on the right side of your message
+- This icon indicates the Manager has **read** your message
+- When you see this icon, your message is in the queue and will be processed after the current task finishes
+
+### 2. Check the chat environment
+
+**Direct message vs. group chat**:
+- In a **direct message** (DM, just you and one agent), every message triggers a response
+- In a **group chat** (2+ participants), you must **@mention the agent** for it to respond — messages without mentions are ignored
+
+### 3. Check session status
+
+The OpenClaw session might be stuck. Enter the Manager or Worker container and use the OpenClaw TUI to investigate:
+
+```bash
+# Manager
+docker exec -it hiclaw-manager openclaw tui
+
+# Worker (replace <worker-name> with actual container name)
+docker exec -it <worker-name> openclaw tui
+```
+
+In the TUI:
+1. Type `/sessions` to list all sessions
+2. Switch to the session for the relevant chat
+3. Try sending a message and observe if there are any errors
+
+If the session is stuck, try `/reset` to reset it and see if that restores normal behavior.
+
+### 4. Check model configuration
+
+The model's context window size might be misconfigured, causing the window to fill up before compression happens. See [How to switch the Manager's model](#how-to-switch-the-managers-model) and [How to switch a Worker's model](#how-to-switch-a-workers-model) for proper configuration.
 
 ---
 

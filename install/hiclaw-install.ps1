@@ -23,8 +23,9 @@
 #   HICLAW_WORKSPACE_DIR      Host directory for manager workspace (default: ~/hiclaw-manager)
 #   HICLAW_VERSION            Image tag          (default: latest)
 #   HICLAW_REGISTRY           Image registry     (default: auto-detected by timezone)
-#   HICLAW_INSTALL_MANAGER_IMAGE  Override manager image (e.g., local build)
-#   HICLAW_INSTALL_WORKER_IMAGE   Override worker image  (e.g., local build)
+#   HICLAW_INSTALL_MANAGER_IMAGE       Override manager image (e.g., local build)
+#   HICLAW_INSTALL_WORKER_IMAGE        Override worker image  (e.g., local build)
+#   HICLAW_INSTALL_COPAW_WORKER_IMAGE  Override copaw worker image (e.g., local build)
 #   HICLAW_PORT_GATEWAY       Host port for Higress gateway (default: 18080)
 #   HICLAW_PORT_CONSOLE       Host port for Higress console (default: 18001)
 #   HICLAW_PORT_ELEMENT_WEB   Host port for Element Web direct access (default: 18088)
@@ -242,12 +243,19 @@ $script:Messages = @{
     "llm.alibaba.model.codingplan" = @{ zh = "  1) CodingPlan  - 专为编程任务优化（推荐）"; en = "  1) CodingPlan  - Optimized for coding tasks (recommended)" }
     "llm.alibaba.model.qwen" = @{ zh = "  2) 百炼通用接口"; en = "  2) qwen general  - General purpose LLM" }
     "llm.alibaba.model.select" = @{ zh = "选择模型系列 [1/2]"; en = "Select model series [1/2]" }
+    "llm.codingplan.models_title" = @{ zh = "选择 CodingPlan 默认模型:"; en = "Select CodingPlan default model:" }
+    "llm.codingplan.model.qwen35plus" = @{ zh = "  1) qwen3.5-plus  - 千问 3.5（速度最快）"; en = "  1) qwen3.5-plus  - Qwen 3.5 (fastest)" }
+    "llm.codingplan.model.glm5" = @{ zh = "  2) glm-5  - 智谱 GLM-5（编程推荐）"; en = "  2) glm-5  - Zhipu GLM-5 (recommended for coding)" }
+    "llm.codingplan.model.kimi" = @{ zh = "  3) kimi-k2.5  - Moonshot Kimi K2.5"; en = "  3) kimi-k2.5  - Moonshot Kimi K2.5" }
+    "llm.codingplan.model.minimax" = @{ zh = "  4) MiniMax-M2.5  - MiniMax M2.5"; en = "  4) MiniMax-M2.5  - MiniMax M2.5" }
+    "llm.codingplan.model.select" = @{ zh = "选择模型 [1/2/3/4]"; en = "Select model [1/2/3/4]" }
     "llm.provider.selected_codingplan" = @{ zh = "  提供商: 阿里云百炼 CodingPlan"; en = "  Provider: Alibaba Cloud Bailian CodingPlan" }
     "llm.provider.selected_qwen" = @{ zh = "  提供商: 阿里云百炼"; en = "  Provider: Alibaba Cloud Bailian" }
     "llm.provider.selected_openai" = @{ zh = "  提供商: {0}（OpenAI 兼容）"; en = "  Provider: {0} (OpenAI-compatible)" }
-    "llm.provider.invalid" = @{ zh = "无效选择，默认使用阿里云百炼 CodingPlan"; en = "Invalid choice, defaulting to Alibaba Cloud Bailian CodingPlan" }
+    "llm.provider.invalid" = @{ zh = "无效选择: {0}（请输入 1 或 2）"; en = "Invalid choice: {0} (please enter 1 or 2)" }
+    "llm.qwen.model_prompt" = @{ zh = "默认模型 ID [qwen3.5-plus]"; en = "Default Model ID [qwen3.5-plus]" }
     "llm.openai.base_url_prompt" = @{ zh = "Base URL（例如 https://api.openai.com/v1）"; en = "Base URL (e.g., https://api.openai.com/v1)" }
-    "llm.openai.model_prompt" = @{ zh = "默认模型 ID [gpt-4o]"; en = "Default Model ID [gpt-4o]" }
+    "llm.openai.model_prompt" = @{ zh = "默认模型 ID [gpt-5.4]"; en = "Default Model ID [gpt-5.4]" }
     "llm.openai.base_url_label" = @{ zh = "  Base URL: {0}"; en = "  Base URL: {0}" }
 
     # --- Admin Credentials ---
@@ -301,6 +309,13 @@ $script:Messages = @{
     "host_share.sharing" = @{ zh = "共享主机目录: {0} -> 容器内 /host-share"; en = "Sharing host directory: {0} -> /host-share in container" }
     "host_share.not_exist" = @{ zh = "警告: 主机目录 {0} 不存在，跳过验证继续使用"; en = "WARNING: Host directory {0} does not exist, using without validation" }
 
+    # --- Default worker runtime ---
+    "worker_runtime.title" = @{ zh = "--- 默认 Worker 运行时 ---"; en = "--- Default Worker Runtime ---" }
+    "worker_runtime.openclaw" = @{ zh = "OpenClaw（Node.js 容器，~500MB 内存）"; en = "OpenClaw (Node.js container, ~500MB RAM)" }
+    "worker_runtime.copaw" = @{ zh = "CoPaw（Python 容器，~100MB 内存，默认关闭控制台，可跟 Manager 对话按需开启）"; en = "CoPaw (Python container, ~100MB RAM, console off by default, enable on demand via Manager)" }
+    "worker_runtime.choice" = @{ zh = "请选择 [1/2]"; en = "Enter choice [1/2]" }
+    "worker_runtime.selected" = @{ zh = "默认 Worker 运行时: {0}"; en = "Default Worker runtime: {0}" }
+
     # --- Secrets and config ---
     "install.generating_secrets" = @{ zh = "正在生成密钥..."; en = "Generating secrets..." }
     "install.config_saved" = @{ zh = "配置已保存到 {0}"; en = "Configuration saved to {0}" }
@@ -339,8 +354,10 @@ $script:Messages = @{
     # --- OpenAI-compatible connectivity test ---
     "llm.openai.test.testing" = @{ zh = "正在测试 API 联通性..."; en = "Testing API connectivity..." }
     "llm.openai.test.ok" = @{ zh = "✅ API 联通性测试通过"; en = "✅ API connectivity test passed" }
-    "llm.openai.test.fail" = @{ zh = "⚠️  API 联通性测试失败（HTTP {0}）。响应内容:`n{1}`n请根据以上错误信息联系您的模型服务商解决。安装将继续，但 Agent 可能无法正常工作。"; en = "⚠️  API connectivity test failed (HTTP {0}). Response body:`n{1}`nPlease contact your model provider to resolve the issue. Installation will continue, but the Agent may not work correctly." }
+    "llm.openai.test.fail" = @{ zh = "⚠️  API 联通性测试失败（HTTP {0}）。响应内容:`n{1}`n请根据以上错误信息联系您的模型服务商解决。"; en = "⚠️  API connectivity test failed (HTTP {0}). Response body:`n{1}`nPlease contact your model provider to resolve the issue." }
     "llm.openai.test.fail.codingplan" = @{ zh = "⚠️  提示: 请确认您的 API Key 已开通阿里云百炼 CodingPlan 服务。开通地址: https://www.aliyun.com/benefit/scene/codingplan"; en = "⚠️  Hint: Please verify that your API Key has CodingPlan service enabled on Alibaba Cloud Bailian. Enable at: https://www.aliyun.com/benefit/scene/codingplan" }
+    "llm.openai.test.confirm" = @{ zh = "是否仍要继续安装？[y/N]"; en = "Continue with installation anyway? [y/N]" }
+    "llm.openai.test.aborted" = @{ zh = "安装已中止。"; en = "Installation aborted." }
     # --- OpenAI-compatible provider creation ---
     "install.openai_compat.missing" = @{ zh = "警告: OpenAI Base URL 或 API Key 未设置，跳过提供商创建"; en = "WARNING: OpenAI Base URL or API Key not set, skipping provider creation" }
     "install.openai_compat.creating" = @{ zh = "正在创建 OpenAI 兼容提供商..."; en = "Creating OpenAI-compatible provider..." }
@@ -405,6 +422,8 @@ $script:Messages = @{
 
     # --- Prompt function messages ---
     "prompt.preset" = @{ zh = "  {0} = （已通过环境变量预设）"; en = "  {0} = (pre-set via env)" }
+    "prompt.upgrade_keep" = @{ zh = "  {0} = {1}（当前值，回车保留 / 输入新值覆盖）"; en = "  {0} = {1} (current value, press Enter to keep / type new value to change)" }
+    "prompt.upgrade_empty" = @{ zh = "  {0} = （未设置，回车跳过 / 输入新值设置）"; en = "  {0} = (not set, press Enter to skip / type new value to set)" }
     "prompt.default" = @{ zh = "  {0} = {1}（默认）"; en = "  {0} = {1} (default)" }
     "prompt.required" = @{ zh = "{0} 是必需的（在非交互模式下通过环境变量设置）"; en = "{0} is required (set via environment variable in non-interactive mode)" }
     "prompt.required_empty" = @{ zh = "{0} 是必需的"; en = "{0} is required" }
@@ -615,8 +634,12 @@ HICLAW_GITHUB_TOKEN=$($Config.GITHUB_TOKEN)
 # Skills Registry (optional, default: https://skills.sh)
 HICLAW_SKILLS_API_URL=$($Config.SKILLS_API_URL)
 
-# Worker image (for direct container creation)
+# Worker images (for direct container creation)
 HICLAW_WORKER_IMAGE=$($Config.WORKER_IMAGE)
+HICLAW_COPAW_WORKER_IMAGE=$($Config.COPAW_WORKER_IMAGE)
+
+# Default Worker runtime (openclaw | copaw)
+HICLAW_DEFAULT_WORKER_RUNTIME=$($Config.DEFAULT_WORKER_RUNTIME)
 
 # Higress WASM plugin image registry (auto-selected by timezone)
 HIGRESS_ADMIN_WASM_PLUGIN_IMAGE_REGISTRY=$($Config.REGISTRY)
@@ -649,8 +672,50 @@ function Read-Prompt {
     # Check if already set in environment
     $envValue = [Environment]::GetEnvironmentVariable($VarName)
     if ($envValue) {
+        if ($script:HICLAW_UPGRADE -and -not $script:HICLAW_NON_INTERACTIVE) {
+            # Show current value (masked for secrets) and let user change it
+            $displayValue = $envValue
+            if ($Secret) {
+                if ($envValue.Length -le 8) {
+                    $displayValue = "****"
+                } else {
+                    $displayValue = $envValue.Substring(0, 4) + "****" + $envValue.Substring($envValue.Length - 4)
+                }
+            }
+            Write-Log (Get-Msg "prompt.upgrade_keep" -f $VarName, $displayValue)
+            $prompt = $PromptText
+            if ($Secret) {
+                $newValue = Read-Host -Prompt $prompt -AsSecureString
+                $newValue = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto(
+                    [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($newValue)
+                )
+            } else {
+                $newValue = Read-Host -Prompt $prompt
+            }
+            if ($newValue) {
+                return $newValue
+            }
+            return $envValue
+        }
         Write-Log (Get-Msg "prompt.preset" -f $VarName)
         return $envValue
+    }
+    # Upgrade mode: optional fields with empty value — let user set a new value
+    elseif ($Optional -and $script:HICLAW_UPGRADE -and -not $script:HICLAW_NON_INTERACTIVE) {
+        Write-Log (Get-Msg "prompt.upgrade_empty" -f $VarName)
+        $prompt = $PromptText
+        if ($Secret) {
+            $newValue = Read-Host -Prompt $prompt -AsSecureString
+            $newValue = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto(
+                [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($newValue)
+            )
+        } else {
+            $newValue = Read-Host -Prompt $prompt
+        }
+        if ($newValue) {
+            return $newValue
+        }
+        return ""
     }
 
     # Non-interactive or quickstart mode
@@ -729,6 +794,13 @@ function Test-LlmConnectivity {
         Write-Host (Get-Msg "llm.openai.test.fail" -f $statusCode, $responseBody) -ForegroundColor Yellow
         if ($Hint) {
             Write-Host $Hint -ForegroundColor Yellow
+        }
+        if (-not $script:HICLAW_NON_INTERACTIVE) {
+            $confirm = Read-Host (Get-Msg "llm.openai.test.confirm")
+            if ($confirm -ne "y" -and $confirm -ne "Y") {
+                Write-Log (Get-Msg "llm.openai.test.aborted")
+                exit 1
+            }
         }
     }
 }
@@ -1077,6 +1149,12 @@ function Install-Manager {
         "$($script:HICLAW_REGISTRY)/higress/hiclaw-worker:$($script:HICLAW_VERSION)"
     }
 
+    $script:COPAW_WORKER_IMAGE = if ($env:HICLAW_INSTALL_COPAW_WORKER_IMAGE) {
+        $env:HICLAW_INSTALL_COPAW_WORKER_IMAGE
+    } else {
+        "$($script:HICLAW_REGISTRY)/higress/hiclaw-copaw-worker:$($script:HICLAW_VERSION)"
+    }
+
     Write-Log (Get-Msg "install.registry" -f $script:HICLAW_REGISTRY)
     Write-Log ""
     Write-Log (Get-Msg "install.dir" -f (Get-Location))
@@ -1164,6 +1242,7 @@ function Install-Manager {
 
         switch -Regex ($upgradeChoice) {
             "^(1|upgrade)$" {
+                $script:HICLAW_UPGRADE = $true
                 Write-Log (Get-Msg "install.existing.upgrading")
 
                 if ($runningManager -or $runningWorkers) {
@@ -1337,13 +1416,49 @@ function Install-Manager {
 
                 if ($modelChoice -match "^(2|qwen)$") {
                     $config.LLM_PROVIDER = "qwen"
-                    $config.DEFAULT_MODEL = if ($env:HICLAW_DEFAULT_MODEL) { $env:HICLAW_DEFAULT_MODEL } else { "qwen3.5-plus" }
+                    Write-Host ""
+                    $qwenModelInput = Read-Host (Get-Msg "llm.qwen.model_prompt")
+                    $config.DEFAULT_MODEL = if ($qwenModelInput) { $qwenModelInput } elseif ($env:HICLAW_DEFAULT_MODEL) { $env:HICLAW_DEFAULT_MODEL } else { "qwen3.5-plus" }
                     $config.OPENAI_BASE_URL = ""
                     Write-Log (Get-Msg "llm.provider.selected_qwen")
                 } else {
                     $config.LLM_PROVIDER = "openai-compat"
-                    $config.OPENAI_BASE_URL = if ($env:HICLAW_OPENAI_BASE_URL) { $env:HICLAW_OPENAI_BASE_URL } else { "https://coding.dashscope.aliyuncs.com/v1" }
-                    $config.DEFAULT_MODEL = if ($env:HICLAW_DEFAULT_MODEL) { $env:HICLAW_DEFAULT_MODEL } else { "qwen3.5-plus" }
+                    $config.OPENAI_BASE_URL = "https://coding.dashscope.aliyuncs.com/v1"
+
+                    # Sub-menu: Select CodingPlan model
+                    Write-Host ""
+                    Write-Host (Get-Msg "llm.codingplan.models_title")
+                    Write-Host (Get-Msg "llm.codingplan.model.qwen35plus")
+                    Write-Host (Get-Msg "llm.codingplan.model.glm5")
+                    Write-Host (Get-Msg "llm.codingplan.model.kimi")
+                    Write-Host (Get-Msg "llm.codingplan.model.minimax")
+                    Write-Host ""
+
+                    if ($script:HICLAW_QUICKSTART) {
+                        $codingPlanModelChoice = Read-Host "$(Get-Msg 'llm.codingplan.model.select') [1]"
+                    } else {
+                        $codingPlanModelChoice = Read-Host (Get-Msg "llm.codingplan.model.select")
+                    }
+                    $codingPlanModelChoice = if ($codingPlanModelChoice) { $codingPlanModelChoice } else { "1" }
+
+                    switch -Regex ($codingPlanModelChoice) {
+                        "^(1|qwen3\.5-plus)$" {
+                            $config.DEFAULT_MODEL = "qwen3.5-plus"
+                        }
+                        "^(2|glm-5)$" {
+                            $config.DEFAULT_MODEL = "glm-5"
+                        }
+                        "^(3|kimi-k2\.5)$" {
+                            $config.DEFAULT_MODEL = "kimi-k2.5"
+                        }
+                        "^(4|MiniMax-M2\.5)$" {
+                            $config.DEFAULT_MODEL = "MiniMax-M2.5"
+                        }
+                        default {
+                            $config.DEFAULT_MODEL = "qwen3.5-plus"
+                        }
+                    }
+
                     Write-Log (Get-Msg "llm.provider.selected_codingplan")
                 }
 
@@ -1367,7 +1482,7 @@ function Install-Manager {
 
                 $config.OPENAI_BASE_URL = Read-Host (Get-Msg "llm.openai.base_url_prompt")
                 $modelInput = Read-Host (Get-Msg "llm.openai.model_prompt")
-                $config.DEFAULT_MODEL = if ($modelInput) { $modelInput } else { "gpt-4o" }
+                $config.DEFAULT_MODEL = if ($modelInput) { $modelInput } else { "gpt-5.4" }
 
                 Write-Log (Get-Msg "llm.openai.base_url_label" -f $config.OPENAI_BASE_URL)
                 Write-Log (Get-Msg "llm.model.label" -f $config.DEFAULT_MODEL)
@@ -1376,18 +1491,7 @@ function Install-Manager {
                 Test-LlmConnectivity -BaseUrl $config.OPENAI_BASE_URL -ApiKey $config.LLM_API_KEY -Model $config.DEFAULT_MODEL
             }
             default {
-                Write-Log (Get-Msg "llm.provider.invalid")
-                $config.LLM_PROVIDER = "openai-compat"
-                $config.OPENAI_BASE_URL = if ($env:HICLAW_OPENAI_BASE_URL) { $env:HICLAW_OPENAI_BASE_URL } else { "https://coding.dashscope.aliyuncs.com/v1" }
-                $config.DEFAULT_MODEL = if ($env:HICLAW_DEFAULT_MODEL) { $env:HICLAW_DEFAULT_MODEL } else { "qwen3.5-plus" }
-                Write-Log (Get-Msg "llm.provider.selected_codingplan")
-                Write-Log (Get-Msg "llm.model.label" -f $config.DEFAULT_MODEL)
-                Write-Log ""
-                Write-Log (Get-Msg "llm.apikey_hint")
-                Write-Log (Get-Msg "llm.apikey_url")
-                Write-Log ""
-                $config.LLM_API_KEY = Read-Prompt -VarName "HICLAW_LLM_API_KEY" -PromptText (Get-Msg "llm.apikey_prompt") -Secret
-                Test-LlmConnectivity -BaseUrl $config.OPENAI_BASE_URL -ApiKey $config.LLM_API_KEY -Model $config.DEFAULT_MODEL -Hint (Get-Msg "llm.openai.test.fail.codingplan")
+                Write-Error (Get-Msg "llm.provider.invalid" -f $providerChoice)
             }
         }
     }
@@ -1507,6 +1611,31 @@ function Install-Manager {
     }
     Write-Log (Get-Msg "workspace.dir_label" -f $config.WORKSPACE_DIR)
 
+    # Default Worker Runtime
+    Write-Log (Get-Msg "worker_runtime.title")
+    Write-Host ""
+    Write-Host "  1) $(Get-Msg 'worker_runtime.openclaw')"
+    Write-Host "  2) $(Get-Msg 'worker_runtime.copaw')"
+    Write-Host ""
+    if ($script:HICLAW_NON_INTERACTIVE) {
+        $config.DEFAULT_WORKER_RUNTIME = if ($env:HICLAW_DEFAULT_WORKER_RUNTIME) { $env:HICLAW_DEFAULT_WORKER_RUNTIME } else { "openclaw" }
+    } elseif ($script:HICLAW_UPGRADE -and $env:HICLAW_DEFAULT_WORKER_RUNTIME) {
+        Write-Log (Get-Msg "prompt.upgrade_keep" -f "HICLAW_DEFAULT_WORKER_RUNTIME", $env:HICLAW_DEFAULT_WORKER_RUNTIME)
+        $rtChoice = Read-Host (Get-Msg "worker_runtime.choice")
+        if ($rtChoice) {
+            $config.DEFAULT_WORKER_RUNTIME = if ($rtChoice -eq "2") { "copaw" } else { "openclaw" }
+        } else {
+            $config.DEFAULT_WORKER_RUNTIME = $env:HICLAW_DEFAULT_WORKER_RUNTIME
+        }
+    } elseif ($env:HICLAW_DEFAULT_WORKER_RUNTIME) {
+        $config.DEFAULT_WORKER_RUNTIME = $env:HICLAW_DEFAULT_WORKER_RUNTIME
+    } else {
+        $rtChoice = Read-Host (Get-Msg "worker_runtime.choice")
+        $rtChoice = if ($rtChoice) { $rtChoice } else { "1" }
+        $config.DEFAULT_WORKER_RUNTIME = if ($rtChoice -eq "2") { "copaw" } else { "openclaw" }
+    }
+    Write-Log (Get-Msg "worker_runtime.selected" -f $config.DEFAULT_WORKER_RUNTIME)
+
     Write-Log ""
 
     # Generate secrets
@@ -1521,6 +1650,7 @@ function Install-Manager {
     $config.LANGUAGE = $script:HICLAW_LANGUAGE
     $config.REGISTRY = $script:HICLAW_REGISTRY
     $config.WORKER_IMAGE = $script:WORKER_IMAGE
+    $config.COPAW_WORKER_IMAGE = $script:COPAW_WORKER_IMAGE
 
     # Host share directory
     if (-not $script:HICLAW_NON_INTERACTIVE -and -not $script:HICLAW_QUICKSTART -and -not $env:HICLAW_HOST_SHARE_DIR) {
@@ -1628,6 +1758,20 @@ function Install-Manager {
     } else {
         Write-Log (Get-Msg "install.image.pulling_worker" -f $script:WORKER_IMAGE)
         & docker pull $script:WORKER_IMAGE
+    }
+    if ($script:COPAW_WORKER_IMAGE.StartsWith($LocalImagePrefix)) {
+        $copawImageExists = docker image inspect $script:COPAW_WORKER_IMAGE 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            Write-Log "Copaw worker image exists: $($script:COPAW_WORKER_IMAGE)"
+        } else {
+            Write-Log "Pulling copaw worker image: $($script:COPAW_WORKER_IMAGE)"
+            & docker pull $script:COPAW_WORKER_IMAGE 2>$null
+            if ($LASTEXITCODE -ne 0) { Write-Log "Copaw worker image not available (optional)" }
+        }
+    } else {
+        Write-Log "Pulling copaw worker image: $($script:COPAW_WORKER_IMAGE)"
+        & docker pull $script:COPAW_WORKER_IMAGE 2>$null
+        if ($LASTEXITCODE -ne 0) { Write-Log "Copaw worker image not available (optional)" }
     }
 
     # Run container

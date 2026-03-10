@@ -27,6 +27,8 @@ WORKER_SKILLS="file-sync"
 REMOTE_MODE=false
 ENABLE_FIND_SKILLS=false
 SKILLS_API_URL=""
+WORKER_RUNTIME="${HICLAW_DEFAULT_WORKER_RUNTIME:-openclaw}"   # openclaw | copaw
+CONSOLE_PORT=""             # copaw only: web console port (e.g. 8088)
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -37,12 +39,14 @@ while [ $# -gt 0 ]; do
         --find-skills) ENABLE_FIND_SKILLS=true; shift ;;
         --skills-api-url) SKILLS_API_URL="$2"; shift 2 ;;
         --remote)     REMOTE_MODE=true; shift ;;
+        --runtime)    WORKER_RUNTIME="$2"; shift 2 ;;
+        --console-port) CONSOLE_PORT="$2"; shift 2 ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
 done
 
 if [ -z "${WORKER_NAME}" ]; then
-    echo "Usage: create-worker.sh --name <NAME> [--model <MODEL_ID>] [--mcp-servers s1,s2] [--skills s1,s2] [--find-skills] [--skills-api-url <URL>] [--remote]"
+    echo "Usage: create-worker.sh --name <NAME> [--model <MODEL_ID>] [--mcp-servers s1,s2] [--skills s1,s2] [--find-skills] [--skills-api-url <URL>] [--remote] [--runtime openclaw|copaw] [--console-port <PORT>]"
     exit 1
 fi
 
@@ -62,6 +66,20 @@ WORKER_ID=$(echo "${WORKER_NAME}" | tr -cd 'a-zA-Z0-9-' | tr 'A-Z' 'a-z' | head 
 if [ -z "${WORKER_ID}" ]; then
     # Use md5 hash of the name, take first 12 chars
     WORKER_ID="worker-$(echo -n "${WORKER_NAME}" | md5sum | head -c 12)"
+    fi
+
+# copaw runtime supports both container and pip-installed modes
+# (previously forced REMOTE_MODE=true; now containers are supported)
+
+# If find-skills is enabled, add it to the skills list
+# Fallback: if HICLAW_SKILLS_API_URL env is set and no --skills-api-url was passed, use it
+if [ -z "${SKILLS_API_URL}" ] && [ -n "${HICLAW_SKILLS_API_URL}" ]; then
+    SKILLS_API_URL="${HICLAW_SKILLS_API_URL}"
+fi
+if [ "${ENABLE_FIND_SKILLS}" = true ]; then
+    if ! echo "${WORKER_SKILLS}" | grep -q '\bfind-skills\b'; then
+        WORKER_SKILLS="${WORKER_SKILLS},find-skills"
+    fi
 fi
 
 # Ensure WORKER_ID starts with a letter (required for Matrix usernames)
@@ -89,18 +107,26 @@ if [ ! -f "${SOUL_FILE}" ]; then
         log "SOUL.md not found, auto-generating for ${WORKER_DISPLAY_NAME}..."
         mkdir -p "$(dirname "${SOUL_FILE}")"
         cat > "${SOUL_FILE}" << EOF
-# ${WORKER_DISPLAY_NAME}
+# ${WORKER_DISPLAY_NAME} - Worker Agent
 
-## 身份
-- 名称：${WORKER_DISPLAY_NAME}
-- 系统 ID：${WORKER_ID}
+## AI Identity
 
-## 角色
-Worker Agent
+**You are an AI Agent, not a human.**
 
-## 能力
-- 执行 Manager 分配的任务
-- 与其他 Worker 协作
+- Both you and the Manager are AI agents that can work 24/7
+- You do not need rest, sleep, or "off-hours"
+- You can immediately start the next task after completing one
+- Your time units are **minutes and hours**, not "days"
+
+## Role
+- Name: ${WORKER_DISPLAY_NAME}
+- System ID: ${WORKER_ID}
+- Role: Worker Agent
+
+## Behavior
+- Be helpful and concise
+- Execute tasks assigned by the Manager
+- Collaborate with other Workers when needed
 EOF
         log "Created SOUL.md at ${SOUL_FILE}"
     fi
@@ -389,29 +415,12 @@ if [ -n "${TARGET_MCP_LIST}" ]; then
     echo "${MCPORTER_JSON}" | jq . > "/root/hiclaw-fs/agents/${WORKER_ID}/mcporter-servers.json"
 fi
 
-# ============================================================
-# Step 6.5: Add existing Workers to new Worker's groupAllowFrom
-# ============================================================
-log "Step 6.5: Adding existing Workers to new Worker's groupAllowFrom..."
-NEW_WORKER_CONFIG="/root/hiclaw-fs/agents/${WORKER_ID}/openclaw.json"
+# Step 6.5 removed: Workers do NOT get other workers in their groupAllowFrom by default.
+# By default, a Worker only accepts @mentions from Manager and the human admin.
+# This prevents infinite mutual-mention loops between Workers.
+# Inter-worker direct @mentions must be explicitly enabled per-project when needed.
+# (Previously, Step 6.5 added existing Workers to new Worker's groupAllowFrom - removed for safety)
 REGISTRY_FILE_EARLY="${HOME}/workers-registry.json"
-if [ -f "${REGISTRY_FILE_EARLY}" ]; then
-    EXISTING_WORKERS_EARLY=$(jq -r '.workers | keys[]' "${REGISTRY_FILE_EARLY}" 2>/dev/null | grep -v "^${WORKER_ID}$" || true)
-    for ew in ${EXISTING_WORKERS_EARLY}; do
-        EW_ID="@${ew}:${MATRIX_DOMAIN}"
-        ALREADY=$(jq -r --arg w "${EW_ID}" \
-            '.channels.matrix.groupAllowFrom // [] | map(select(. == $w)) | length' \
-            "${NEW_WORKER_CONFIG}" 2>/dev/null || echo "0")
-        if [ "${ALREADY}" = "0" ]; then
-            jq --arg w "${EW_ID}" '.channels.matrix.groupAllowFrom += [$w]' \
-                "${NEW_WORKER_CONFIG}" > /tmp/new-worker-oclaw-tmp.json
-            mv /tmp/new-worker-oclaw-tmp.json "${NEW_WORKER_CONFIG}"
-            log "  Added @${ew} to new worker's groupAllowFrom"
-        fi
-    done
-else
-    log "  No existing registry, skipping"
-fi
 
 # ============================================================
 # Step 7: Update Manager groupAllowFrom
@@ -446,72 +455,37 @@ mc stat "hiclaw/hiclaw-storage/agents/${WORKER_ID}/openclaw.json" > /dev/null 2>
 log "  MinIO sync verified"
 
 # Push Worker agent files from Manager image (AGENTS.md + file-sync skill)
-WORKER_AGENT_SRC="/opt/hiclaw/agent/worker-agent"
+# Use runtime-specific file-sync skill for copaw workers
+if [ "${WORKER_RUNTIME}" = "copaw" ]; then
+    WORKER_AGENT_SRC="/opt/hiclaw/agent/copaw-worker-agent"
+    FILESYNC_SRC="${WORKER_AGENT_SRC}/skills/file-sync"
+else
+    WORKER_AGENT_SRC="/opt/hiclaw/agent/worker-agent"
+    FILESYNC_SRC="${WORKER_AGENT_SRC}/skills/file-sync"
+fi
+
 if [ -d "${WORKER_AGENT_SRC}" ]; then
-    log "  Pushing AGENTS.md (with builtin markers) to worker MinIO..."
+    log "  Pushing AGENTS.md (runtime=${WORKER_RUNTIME}) to worker MinIO..."
     mc cp "${WORKER_AGENT_SRC}/AGENTS.md" \
         "hiclaw/hiclaw-storage/agents/${WORKER_ID}/AGENTS.md" \
         || log "  WARNING: Failed to push AGENTS.md"
-    log "  Pushing file-sync skill to worker MinIO..."
-    mc mirror "${WORKER_AGENT_SRC}/skills/file-sync/" \
-        "hiclaw/hiclaw-storage/agents/${WORKER_ID}/skills/file-sync/" --overwrite \
-        || log "  WARNING: Failed to push file-sync skill"
-    log "  Worker agent files pushed"
+    
+    if [ -d "${FILESYNC_SRC}" ]; then
+        log "  Pushing file-sync skill (${WORKER_RUNTIME}) to worker MinIO..."
+        mc mirror "${FILESYNC_SRC}/" \
+            "hiclaw/hiclaw-storage/agents/${WORKER_ID}/skills/file-sync/" --overwrite \
+            || log "  WARNING: Failed to push file-sync skill"
+        log "  Worker agent files pushed"
+    else
+        log "  WARNING: file-sync skill not found at ${FILESYNC_SRC}"
+    fi
 else
     log "  WARNING: worker-agent directory not found at ${WORKER_AGENT_SRC}"
 fi
 
-# ============================================================
-# Step 8b: Add new Worker to all existing Workers' groupAllowFrom
-# ============================================================
-log "Step 8b: Updating existing Workers' groupAllowFrom..."
-if [ -f "${REGISTRY_FILE_EARLY}" ]; then
-    EXISTING_WORKERS_EARLY=$(jq -r '.workers | keys[]' "${REGISTRY_FILE_EARLY}" 2>/dev/null | grep -v "^${WORKER_ID}$" || true)
-    for ew in ${EXISTING_WORKERS_EARLY}; do
-        EW_MINIO="hiclaw/hiclaw-storage/agents/${ew}/openclaw.json"
-        EW_TMP="/tmp/openclaw-${ew}-update.json"
-        EW_TMP_OUT="/tmp/openclaw-${ew}-updated.json"
-
-        if ! mc cp "${EW_MINIO}" "${EW_TMP}" 2>/dev/null; then
-            log "  WARNING: Could not pull openclaw.json for ${ew} from MinIO, skipping"
-            continue
-        fi
-
-        ALREADY=$(jq -r --arg w "${WORKER_MATRIX_ID}" \
-            '.channels.matrix.groupAllowFrom // [] | map(select(. == $w)) | length' \
-            "${EW_TMP}" 2>/dev/null || echo "0")
-
-        if [ "${ALREADY}" = "0" ]; then
-            jq --arg w "${WORKER_MATRIX_ID}" '.channels.matrix.groupAllowFrom += [$w]' \
-                "${EW_TMP}" > "${EW_TMP_OUT}"
-            if mc cp "${EW_TMP_OUT}" "${EW_MINIO}" 2>/dev/null; then
-                log "  Updated ${ew}: added ${WORKER_MATRIX_ID} to groupAllowFrom"
-                # Notify worker to run hiclaw-sync
-                EW_ROOM_ID=$(jq -r --arg w "${ew}" '.workers[$w].room_id // empty' \
-                    "${REGISTRY_FILE_EARLY}" 2>/dev/null || true)
-                if [ -n "${EW_ROOM_ID}" ]; then
-                    TXN_ID=$(openssl rand -hex 8)
-                    curl -sf -X PUT \
-                        "http://127.0.0.1:6167/_matrix/client/v3/rooms/${EW_ROOM_ID}/send/m.room.message/${TXN_ID}" \
-                        -H "Authorization: Bearer ${MANAGER_MATRIX_TOKEN}" \
-                        -H 'Content-Type: application/json' \
-                        -d "{\"msgtype\":\"m.text\",\"body\":\"@${ew}:${MATRIX_DOMAIN} Your config has been updated (new worker @${WORKER_ID}:${MATRIX_DOMAIN} added to groupAllowFrom). Please run: hiclaw-sync\",\"m.mentions\":{\"user_ids\":[\"@${ew}:${MATRIX_DOMAIN}\"]}}" \
-                        > /dev/null 2>&1 \
-                        && log "  Notified @${ew} to run hiclaw-sync" \
-                        || log "  WARNING: Failed to notify @${ew}"
-                fi
-            else
-                log "  WARNING: Failed to push updated config for ${ew} to MinIO"
-            fi
-            rm -f "${EW_TMP}" "${EW_TMP_OUT}"
-        else
-            log "  ${ew}: already has ${WORKER_MATRIX_ID} in groupAllowFrom"
-            rm -f "${EW_TMP}"
-        fi
-    done
-else
-    log "  No existing registry, skipping"
-fi
+# Step 8b removed: Do NOT add the new Worker to existing Workers' groupAllowFrom.
+# Workers only accept @mentions from Manager and admin by default.
+# This prevents inter-worker mention loops. Enable peer mentions explicitly if needed.
 
 # ============================================================
 # Step 8.5: Update workers-registry.json and push skills
@@ -550,12 +524,14 @@ jq --arg w "${WORKER_ID}" \
    --arg uid "${WORKER_MATRIX_USER_ID}" \
    --arg rid "${ROOM_ID}" \
    --arg ts "${NOW_TS}" \
+   --arg runtime "${WORKER_RUNTIME}" \
    --argjson skills "${SKILLS_JSON}" \
    --arg display_name "${WORKER_DISPLAY_NAME}" \
    '.workers[$w] = {
      "matrix_user_id": $uid,
      "display_name": $display_name,
      "room_id": $rid,
+     "runtime": $runtime,
      "skills": $skills,
      "created_at": (if .workers[$w].created_at? then .workers[$w].created_at else $ts end),
      "skills_updated_at": $ts
@@ -583,11 +559,29 @@ source /opt/hiclaw/scripts/lib/container-api.sh
 _build_install_cmd() {
     local manager_ip
     manager_ip=$(container_get_manager_ip 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}')
-    local fs_endpoint="http://${HICLAW_FS_DOMAIN:-fs-local.hiclaw.io}:8080"
+    # copaw workers run on the host, so use the externally-exposed gateway port.
+    # openclaw workers run inside a container, so use the internal port 8080.
+    local fs_domain="${HICLAW_FS_DOMAIN:-fs-local.hiclaw.io}"
+    local fs_internal_endpoint="http://${fs_domain}:8080"
+    local fs_external_port="${HICLAW_PORT_GATEWAY:-18080}"
+    local fs_external_endpoint="http://${fs_domain}:${fs_external_port}"
     local fs_access_key="${WORKER_ID}"
     local fs_secret_key="${WORKER_MINIO_PASSWORD}"
 
-    local cmd="bash hiclaw-install.sh worker --name ${WORKER_ID} --fs ${fs_endpoint} --fs-key ${fs_access_key} --fs-secret ${fs_secret_key}"
+    if [ "${WORKER_RUNTIME}" = "copaw" ]; then
+        # copaw-worker is a pip package running on the host; use external port.
+        # Use Alibaba Cloud PyPI mirror for faster downloads in China.
+        local cmd="pip install -i https://mirrors.aliyun.com/pypi/simple/ copaw-worker && copaw-worker"
+        cmd="${cmd} --name ${WORKER_ID}"
+        cmd="${cmd} --fs ${fs_external_endpoint}"
+        cmd="${cmd} --fs-key ${fs_access_key}"
+        cmd="${cmd} --fs-secret ${fs_secret_key}"
+        cmd="${cmd} --console-port ${CONSOLE_PORT:-8088}"
+        echo "${cmd}"
+        return
+    fi
+
+    local cmd="bash hiclaw-install.sh worker --name ${WORKER_ID} --fs ${fs_internal_endpoint} --fs-key ${fs_access_key} --fs-secret ${fs_secret_key}"
 
     # Add find-skills related options if enabled
     if [ "${ENABLE_FIND_SKILLS}" = true ]; then
@@ -602,30 +596,56 @@ _build_install_cmd() {
 
 # Build extra environment variables JSON for container creation
 _build_extra_env() {
-    local extra_env="[]"
+    local items=()
     if [ "${ENABLE_FIND_SKILLS}" = true ] && [ -n "${SKILLS_API_URL}" ]; then
-        extra_env='["SKILLS_API_URL='"${SKILLS_API_URL}"'"]'
+        items+=("SKILLS_API_URL=${SKILLS_API_URL}")
     fi
-    echo "${extra_env}"
+    if [ -n "${CONSOLE_PORT}" ]; then
+        items+=("HICLAW_CONSOLE_PORT=${CONSOLE_PORT}")
+    fi
+    if [ ${#items[@]} -eq 0 ]; then
+        echo "[]"
+    else
+        printf '%s\n' "${items[@]}" | jq -R . | jq -s .
+    fi
 }
 
 if [ "${REMOTE_MODE}" = true ]; then
     log "Step 9: Remote mode requested"
     INSTALL_CMD=$(_build_install_cmd)
 elif container_api_available; then
-    log "Step 9: Starting Worker container locally..."
+    log "Step 9: Starting Worker container locally (runtime=${WORKER_RUNTIME})..."
     EXTRA_ENV_JSON=$(_build_extra_env)
-    CREATE_OUTPUT=$(container_create_worker "${WORKER_ID}" "${WORKER_ID}" "${WORKER_MINIO_PASSWORD}" "${EXTRA_ENV_JSON}" 2>&1) || true
+    if [ "${WORKER_RUNTIME}" = "copaw" ]; then
+        CREATE_OUTPUT=$(container_create_copaw_worker "${WORKER_ID}" "${WORKER_ID}" "${WORKER_MINIO_PASSWORD}" "${EXTRA_ENV_JSON}" 2>&1) || true
+    else
+        CREATE_OUTPUT=$(container_create_worker "${WORKER_ID}" "${WORKER_ID}" "${WORKER_MINIO_PASSWORD}" "${EXTRA_ENV_JSON}" 2>&1) || true
+    fi
     CONTAINER_ID=$(echo "${CREATE_OUTPUT}" | tail -1)
+    # Extract actual console host port (randomly assigned, may differ from container port)
+    CONSOLE_HOST_PORT=$(echo "${CREATE_OUTPUT}" | grep -o 'CONSOLE_HOST_PORT=[0-9]*' | head -1 | cut -d= -f2)
     if [ -n "${CONTAINER_ID}" ] && [ ${#CONTAINER_ID} -ge 12 ]; then
         DEPLOY_MODE="local"
+        if [ -n "${CONSOLE_HOST_PORT}" ]; then
+            log "  Console available at host port ${CONSOLE_HOST_PORT}"
+        fi
         log "  Waiting for Worker agent to be ready..."
-        if container_wait_worker_ready "${WORKER_ID}" 120; then
-            WORKER_STATUS="ready"
-            log "  Worker agent is ready!"
+        if [ "${WORKER_RUNTIME}" = "copaw" ]; then
+            if container_wait_copaw_worker_ready "${WORKER_ID}" 120; then
+                WORKER_STATUS="ready"
+                log "  CoPaw Worker agent is ready!"
+            else
+                WORKER_STATUS="starting"
+                log "  WARNING: CoPaw Worker agent not ready within timeout (container may still be initializing)"
+            fi
         else
-            WORKER_STATUS="starting"
-            log "  WARNING: Worker agent not ready within timeout (container may still be initializing)"
+            if container_wait_worker_ready "${WORKER_ID}" 120; then
+                WORKER_STATUS="ready"
+                log "  Worker agent is ready!"
+            else
+                WORKER_STATUS="starting"
+                log "  WARNING: Worker agent not ready within timeout (container may still be initializing)"
+            fi
         fi
     else
         log "  WARNING: Container creation failed, falling back to remote mode"
@@ -646,9 +666,11 @@ RESULT=$(jq -n \
     --arg room_id "${ROOM_ID}" \
     --arg consumer "${CONSUMER_NAME}" \
     --arg mode "${DEPLOY_MODE}" \
+    --arg runtime "${WORKER_RUNTIME}" \
     --arg container_id "${CONTAINER_ID}" \
     --arg status "${WORKER_STATUS}" \
     --arg install_cmd "${INSTALL_CMD:-}" \
+    --arg console_host_port "${CONSOLE_HOST_PORT:-}" \
     --argjson skills "${SKILLS_JSON}" \
    --arg display_name "${WORKER_DISPLAY_NAME}" \
     '{
@@ -657,11 +679,13 @@ RESULT=$(jq -n \
         matrix_user_id: $user_id,
         room_id: $room_id,
         consumer: $consumer,
+        runtime: $runtime,
         skills: $skills,
         mode: $mode,
         container_id: $container_id,
         status: $status,
-        install_cmd: (if $install_cmd == "" then null else $install_cmd end)
+        install_cmd: (if $install_cmd == "" then null else $install_cmd end),
+        console_host_port: (if $console_host_port == "" then null else $console_host_port end)
     }')
 
 echo "---RESULT---"
