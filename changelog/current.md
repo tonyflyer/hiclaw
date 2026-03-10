@@ -12,3 +12,5 @@ Record image-affecting changes to `manager/`, `worker/`, `openclaw-base/` here b
 - feat(manager): add User-Agent header (HiClaw/<version>) to default AI route via headerControl, and send it in LLM connectivity tests ([3242d06](https://github.com/higress-group/hiclaw/commit/3242d0630d196c35b5df6fd6fbd7ac6e6b72c08a))
 - feat(manager): configure OpenClaw exec tool for actual command execution (elevated permissions, gateway host, exec-approvals)
 - feat(manager): add reasoning model detection and automatic thinking mode configuration in start-manager-agent.sh
+- feat(manager): add persistent OpenClaw update mechanism — update-openclaw.sh script + workspace version detection in start-manager-agent.sh (updates survive container restarts via ~/hiclaw-manager mount)
+- fix(openclaw-base): upgrade OpenClaw to v2026.3.8 (from v2026.3.1)

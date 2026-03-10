@@ -52,7 +52,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
 # 1. Clone specific release tag to minimize .git size
 # 2. Install dependencies and build
 # 3. Remove unnecessary files (tests, .git, etc.) - keep all node_modules for extensions
-RUN git clone --depth 1 --branch v2026.3.1 \
+RUN git clone --depth 1 --branch v2026.3.8 \
         https://github.com/openclaw/openclaw.git /opt/openclaw && \
     cd /opt/openclaw && \
     pnpm config set registry ${NPM_REGISTRY} && \

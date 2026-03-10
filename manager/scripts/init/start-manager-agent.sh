@@ -460,6 +460,29 @@ if [ -d "/host-share" ]; then
     [ -f "/host-share/.gitconfig" ] && ln -sf "/host-share/.gitconfig" "${HOME}/.gitconfig"
 fi
 
+# ============================================================
+# Copy update script to workspace for easy user access
+# ============================================================
+cp -f /opt/hiclaw/scripts/update-openclaw.sh /root/manager-workspace/update-openclaw.sh 2>/dev/null || true
+chmod +x /root/manager-workspace/update-openclaw.sh 2>/dev/null || true
+
+# ============================================================
+# Select OpenClaw: workspace version (persistent) vs image default
+# ============================================================
+_WORKSPACE_OC="/root/manager-workspace/openclaw-runtime"
+_IMAGE_OC_VER=$(node -e "try{console.log(require('/opt/openclaw/package.json').version)}catch(e){console.log('unknown')}" 2>/dev/null || echo "unknown")
+
+if [[ -f "${_WORKSPACE_OC}/openclaw.mjs" ]]; then
+    _WS_OC_VER=$(node -e "try{console.log(require('${_WORKSPACE_OC}/package.json').version)}catch(e){console.log('unknown')}" 2>/dev/null || echo "unknown")
+    log "OpenClaw: workspace v${_WS_OC_VER} detected (image: v${_IMAGE_OC_VER}) — using workspace version"
+    # Prepend workspace OpenClaw bin dir to PATH (same structure as image: packages/clawdbot/node_modules/.bin)
+    export PATH="${_WORKSPACE_OC}/packages/clawdbot/node_modules/.bin:${PATH}"
+    _OC_LAUNCH="node ${_WORKSPACE_OC}/openclaw.mjs"
+else
+    log "OpenClaw: image v${_IMAGE_OC_VER} (no workspace version found — run update-openclaw.sh to install one)"
+    _OC_LAUNCH="openclaw"
+fi
+
 log "HOME=${HOME} (manager-workspace, host-mounted)"
 cd "${HOME}"
-exec openclaw gateway run --verbose --force
+exec ${_OC_LAUNCH} gateway run --verbose --force

@@ -311,3 +311,33 @@ The `start-manager-agent.sh` script auto-creates this file at startup.
 **Verified non-working**: `qwen/qwen3.5-35b-a3b` — returns plain text when `tool_choice: "auto"`, hallucinated tool names when `tool_choice: "required"`.
 
 **Note**: The `start-manager-agent.sh` script includes reasoning model detection logic. Non-reasoning models (like qwen2.5-*) have `thinking` disabled via `--reasoning-effort off` jq patch.
+
+### Updating OpenClaw Without Rebuilding the Image
+
+**Problem**: OpenClaw lives at `/opt/openclaw` inside the container (from the image). Rebuilding the image to update it takes time and requires a full redeploy.
+
+**Solution**: A persistent update mechanism that stores the updated OpenClaw in the host-mounted workspace (`~/hiclaw-manager/openclaw-runtime/`), which survives container restarts.
+
+**How it works**:
+1. `update-openclaw.sh` clones the desired OpenClaw tag into `/root/manager-workspace/openclaw-runtime/`
+2. On next startup, `start-manager-agent.sh` detects the workspace version and uses it instead of the image version
+3. The workspace directory is host-mounted (`~/hiclaw-manager` → `/root/manager-workspace`), so updates persist across container restarts and even container recreation
+
+**Usage**:
+```bash
+# Update to latest OpenClaw (auto-detects latest tag)
+docker exec hiclaw-manager bash /root/manager-workspace/update-openclaw.sh
+
+# Update to specific version and restart agent
+docker exec hiclaw-manager bash /root/manager-workspace/update-openclaw.sh --tag v2026.3.8 --restart
+
+# Check current version
+docker exec hiclaw-manager openclaw --version
+```
+
+**Key files**:
+- `manager/scripts/update-openclaw.sh` — update script (copied to workspace at startup)
+- `manager/scripts/init/start-manager-agent.sh` — detects and uses workspace OpenClaw if present
+- `manager/Dockerfile` — PATH includes workspace bin dir with priority over image bin dir
+
+**Workspace path**: `/root/manager-workspace/openclaw-runtime/` (persisted via `~/hiclaw-manager` host mount)
