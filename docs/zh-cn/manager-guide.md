@@ -373,3 +373,97 @@ docker exec hiclaw-manager touch /root/manager-workspace/yolo-mode
 | 其他需要确认的决策 | 提示管理员 | 做出最合理的选择，在消息中说明 |
 
 YOLO 模式**不会**影响安全规则、Worker 凭据隔离或 Agent 通信对人工管理员的可见性。
+
+## 升级 OpenClaw
+
+OpenClaw 是驱动 Manager 的 Agent 运行时，可以在不重建 Docker 镜像的情况下进行升级。
+
+### 工作原理
+
+Manager 在每次启动时采用**工作空间优先**的版本选择策略：
+
+```
+容器启动
+  └─ ~/hiclaw-manager/openclaw-runtime/openclaw.mjs 是否存在？
+       否  → 使用镜像内置的 OpenClaw（回退）
+       是  → 比较版本号
+               workspace >= image → 使用 workspace 版本 ✅
+               workspace <  image → 使用镜像版本 ⚠️（日志告警：请运行 update-openclaw.sh）
+```
+
+工作空间目录（`~/hiclaw-manager/`）从宿主机 bind mount 挂载，因此安装在其中的 OpenClaw **在容器重启和重建后均持续保留**。
+
+### 方式一：原地升级（推荐）
+
+无需重建镜像，无需完整停机。Agent 停服时间约 10 秒。
+
+```bash
+# 升级到指定版本并重启 Agent
+docker exec hiclaw-manager bash /root/manager-workspace/update-openclaw.sh --tag v2026.3.9 --restart
+
+# 或：只升级，稍后手动重启
+docker exec hiclaw-manager bash /root/manager-workspace/update-openclaw.sh --tag v2026.3.9
+docker exec hiclaw-manager supervisorctl restart manager-agent
+
+# 或：自动检测最新稳定版
+docker exec hiclaw-manager bash /root/manager-workspace/update-openclaw.sh --restart
+```
+
+**脚本执行流程：**
+1. 在容器内 `git clone --depth 1 --branch <tag>` 到临时目录
+2. `pnpm install` — 下载所有依赖（再次运行时使用已缓存的 pnpm store，速度更快）
+3. `pnpm build` — 编译 TypeScript
+4. 原子替换：将结果移动到 `~/hiclaw-manager/openclaw-runtime/`
+5. （若指定 `--restart`）执行 `supervisorctl restart manager-agent`
+
+升级在**容器内部**完成，但结果存储在宿主机挂载的工作空间中，容器重建后仍然保留。
+
+### 方式二：重建镜像
+
+适用于发布新版 HiClaw 镜像，或需要将新版 OpenClaw 固化到基础镜像中。
+
+```bash
+# 1. 修改 openclaw-base/Dockerfile
+#    将 --branch v2026.3.8 改为目标版本
+#    如 --branch v2026.3.9
+
+# 2. 重建并重新部署
+make build
+bash <(curl -sSL https://higress.ai/hiclaw/install.sh)
+```
+
+### 查看当前版本
+
+```bash
+# 当前正在使用的版本
+docker exec hiclaw-manager openclaw --version
+
+# 镜像版本 vs workspace 版本
+docker exec hiclaw-manager bash -c "
+  echo 'Image:     '\$(node -e \"console.log(require('/opt/openclaw/package.json').version)\" 2>/dev/null)
+  echo 'Workspace: '\$(node -e \"console.log(require('/root/manager-workspace/openclaw-runtime/package.json').version)\" 2>/dev/null || echo 'not installed')
+"
+
+# 查看启动时的版本选择日志
+docker exec hiclaw-manager grep -i 'OpenClaw:' /var/log/hiclaw/manager-agent.log | tail -5
+```
+
+### 版本回退
+
+```bash
+# 方案 A：删除 workspace 版本，回退到镜像内置版本
+docker exec hiclaw-manager rm -rf /root/manager-workspace/openclaw-runtime
+docker exec hiclaw-manager supervisorctl restart manager-agent
+
+# 方案 B：安装旧版本（仅当旧版本 >= 镜像版本时才会生效）
+docker exec hiclaw-manager bash /root/manager-workspace/update-openclaw.sh --tag v2026.3.7 --restart
+```
+
+### 版本选择规则汇总
+
+| workspace 状态 | 启动时行为 |
+|----------------|------------|
+| 未安装 | 使用镜像内置版本 |
+| 版本 >= 镜像版本 | 使用 workspace 版本 |
+| 版本 < 镜像版本 | 使用镜像版本，日志告警提示升级 |
+| 版本相同 | 使用 workspace 版本（优先） |

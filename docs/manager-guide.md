@@ -405,3 +405,97 @@ docker exec hiclaw-manager touch /root/manager-workspace/yolo-mode
 | Other decisions requiring confirmation | Prompt admin | Make the most reasonable choice, explain in message |
 
 YOLO mode does **not** affect security rules, Worker credential isolation, or human visibility of Agent communication.
+
+## Upgrading OpenClaw
+
+OpenClaw is the agent runtime that powers the Manager. It can be upgraded without rebuilding the Docker image.
+
+### How It Works
+
+The Manager uses a **workspace-first** version selection strategy on every startup:
+
+```
+Container starts
+  └─ Is ~/hiclaw-manager/openclaw-runtime/openclaw.mjs present?
+       NO  → Use image's built-in OpenClaw (fallback)
+       YES → Compare versions
+               workspace >= image → Use workspace version ✅
+               workspace <  image → Use image version ⚠️  (log warning: run update-openclaw.sh)
+```
+
+The workspace directory (`~/hiclaw-manager/`) is bind-mounted from the host, so any OpenClaw installed there **persists across container restarts and recreation**.
+
+### Method 1: In-Place Upgrade (Recommended)
+
+Upgrades OpenClaw without rebuilding the image or restarting the container. Downtime is ~10 seconds.
+
+```bash
+# Upgrade to a specific version and restart the agent
+docker exec hiclaw-manager bash /root/manager-workspace/update-openclaw.sh --tag v2026.3.9 --restart
+
+# Or: upgrade only (restart manually later)
+docker exec hiclaw-manager bash /root/manager-workspace/update-openclaw.sh --tag v2026.3.9
+docker exec hiclaw-manager supervisorctl restart manager-agent
+
+# Or: auto-detect latest stable version
+docker exec hiclaw-manager bash /root/manager-workspace/update-openclaw.sh --restart
+```
+
+**What the script does:**
+1. `git clone --depth 1 --branch <tag>` into a temp directory inside the container
+2. `pnpm install` — downloads all dependencies (uses cached pnpm store on subsequent runs)
+3. `pnpm build` — compiles TypeScript
+4. Atomically moves the result to `~/hiclaw-manager/openclaw-runtime/`
+5. (If `--restart`) runs `supervisorctl restart manager-agent`
+
+The upgrade is done **inside the container**, but the result is stored in the host-mounted workspace and survives container recreation.
+
+### Method 2: Image Rebuild
+
+Use this when cutting a new HiClaw release or when you want the new OpenClaw version baked into the base image.
+
+```bash
+# 1. Update openclaw-base/Dockerfile
+#    Change: --branch v2026.3.8
+#    To:     --branch v2026.3.9
+
+# 2. Rebuild and redeploy
+make build
+bash <(curl -sSL https://higress.ai/hiclaw/install.sh)
+```
+
+### Check Current Versions
+
+```bash
+# Version currently in use
+docker exec hiclaw-manager openclaw --version
+
+# Image version vs workspace version
+docker exec hiclaw-manager bash -c "
+  echo 'Image:     '\$(node -e \"console.log(require('/opt/openclaw/package.json').version)\" 2>/dev/null)
+  echo 'Workspace: '\$(node -e \"console.log(require('/root/manager-workspace/openclaw-runtime/package.json').version)\" 2>/dev/null || echo 'not installed')
+"
+
+# Startup selection log
+docker exec hiclaw-manager grep -i 'OpenClaw:' /var/log/hiclaw/manager-agent.log | tail -5
+```
+
+### Rollback
+
+```bash
+# Option A: Remove workspace version to fall back to image's built-in version
+docker exec hiclaw-manager rm -rf /root/manager-workspace/openclaw-runtime
+docker exec hiclaw-manager supervisorctl restart manager-agent
+
+# Option B: Install an older version (will only be used if >= image version)
+docker exec hiclaw-manager bash /root/manager-workspace/update-openclaw.sh --tag v2026.3.7 --restart
+```
+
+### Version Selection Summary
+
+| Workspace state | Startup behavior |
+|-----------------|-----------------|
+| Not installed | Use image built-in version |
+| version >= image | Use workspace version |
+| version < image | Use image version, warn to upgrade workspace |
+| Equal versions | Use workspace version (preferred) |
