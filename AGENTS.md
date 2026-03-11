@@ -35,6 +35,35 @@ make clean
 make help
 ```
 
+## Rebuild and Redeploy
+
+**CRITICAL**: When rebuilding images and redeploying the Manager container, always preserve the existing `.env` file to retain configuration:
+
+```bash
+# 1. Backup .env before rebuild
+cp ~/hiclaw-manager/.env ~/hiclaw-manager/.env.backup
+
+# 2. Rebuild images
+make build
+
+# 3. Stop and remove old container
+docker stop hiclaw-manager && docker rm hiclaw-manager
+
+# 4. Restore .env (if reinstall script overwrites it)
+cp ~/hiclaw-manager/.env.backup ~/hiclaw-manager/.env
+
+# 5. Redeploy - either:
+# Option A: Re-run installer (will use existing .env)
+bash <(curl -sSL https://higress.ai/hiclaw/install.sh) manager
+
+# Option B: Manual docker run with env file
+docker run -d --name hiclaw-manager \
+  --env-file ~/hiclaw-manager/.env \
+  ...other args...
+```
+
+The `.env` file contains all sensitive configuration (API keys, passwords, tokens). Losing it requires re-configuring the entire system.
+
 ## Code Style Guidelines
 
 ### Shell Scripts (Bash)
