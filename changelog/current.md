@@ -21,3 +21,6 @@ Record image-affecting changes to `manager/`, `worker/`, `copaw/`, or `openclaw-
 - feat(worker): add --browser flag to create-worker.sh for optional Browser tool support (web scraping capability)
 - fix(worker): fix create-worker.sh malformed JSON in Step 2 room creation (duplicate preset/bracket lines) that silently prevented room creation
 - fix(worker): create-worker.sh now auto-joins admin and worker into the created room after creation so the room is immediately visible in Element Web
+- fix(worker): guard against circular skills/skills symlink (ELOOP prevention) in worker-entrypoint.sh
+- fix(worker): add reasoning model detection to generate-worker-config.sh — non-reasoning models (e.g. qwen2.5-*) now correctly get reasoning=false instead of hardcoded true
+- fix(manager): inject CSS fix for Element Web @mention autocomplete visibility — override contain:strict on .mx_RoomView_wrapper via nginx sub_filter

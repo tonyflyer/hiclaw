@@ -448,6 +448,34 @@ create-worker.sh --name collector --browser
 
 **Security note**: Only enable browser for Workers that genuinely need web scraping. Browser capability increases attack surface via prompt injection through web content.
 
+### Worker Not Responding Despite Processing @Mentions
+
+**Problem**: Worker processes an @mention (logs show `wasMentioned=true`, `embedded run done`, `aborted=false`) but never sends a reply to the Matrix room.
+
+**Root Cause**: `generate-worker-config.sh` hardcoded `MODEL_REASONING=true` for ALL models. When a non-reasoning model (e.g., `qwen2.5-7b-instruct-1m`) receives thinking/reasoning parameters from OpenClaw, the response format is malformed and the actual message content is silently dropped.
+
+**Solution**: Fixed in `generate-worker-config.sh` — added reasoning model detection logic matching the Manager's `start-manager-agent.sh`. Non-reasoning models now get `reasoning: false`.
+
+**If already deployed**: Patch the Worker's `openclaw.json` directly:
+```bash
+docker exec hiclaw-worker-<name> sed -i 's/"reasoning": true/"reasoning": false/' ~/openclaw.json
+docker restart hiclaw-worker-<name>
+```
+
+**Note**: A config hot-reload alone is NOT sufficient — OpenClaw requires a full restart to pick up the `reasoning` change in model definitions.
+
+### Skills Directory Circular Symlink (ELOOP)
+
+**Problem**: OpenClaw's skills watcher crashes with `ELOOP: too many symbolic links encountered` when scanning the workspace.
+
+**Root Cause**: A circular symlink `skills/skills -> /root/hiclaw-fs/agents/<worker>/skills` gets created inside the skills directory, causing infinite recursion. This is an original HiClaw bug — all Workers are affected.
+
+**Solution**: Added a guard in `worker-entrypoint.sh` that detects and removes the circular symlink after the `.agents/skills` symlink creation step.
+
+**If already deployed** (before image rebuild):
+```bash
+docker exec hiclaw-worker-<name> rm -f ~/skills/skills
+```
 
 ### create-worker.sh: Room Creation and Auto-Join
 

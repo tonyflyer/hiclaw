@@ -59,6 +59,14 @@ case "${MODEL_NAME}" in
         INPUT='["text"]' ;;
 esac
 
+# Detect reasoning models: only models with native thinking/reasoning support
+case "${MODEL_NAME}" in
+    *-reasoner|*-thinking|o1*|o3*|o4*|claude-opus*|claude-sonnet*|qwen3*|deepseek-r1*)
+        MODEL_REASONING=true ;;
+    *)
+        MODEL_REASONING=false ;;
+esac
+
 GATEWAY_AUTH_TOKEN=$(openssl rand -hex 32)
 
 export WORKER_NAME
@@ -72,7 +80,7 @@ export HICLAW_MATRIX_DOMAIN="${MATRIX_DOMAIN_FOR_ID}"
 export HICLAW_AI_GATEWAY="http://${AI_GATEWAY_DOMAIN}:8080"
 export HICLAW_ADMIN_USER="${ADMIN_USER}"
 export HICLAW_DEFAULT_MODEL="${MODEL_NAME}"
-export MODEL_REASONING=true
+export MODEL_REASONING="${MODEL_REASONING}"
 export MODEL_CONTEXT_WINDOW="${CTX}"
 export MODEL_MAX_TOKENS="${MAX}"
 export MODEL_INPUT="${INPUT}"

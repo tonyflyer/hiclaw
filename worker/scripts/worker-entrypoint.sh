@@ -71,6 +71,16 @@ mkdir -p "${HOME}/skills"
 mkdir -p "${HOME}/.agents"
 ln -sf "${HOME}/skills" "${HOME}/.agents/skills"
 
+# Guard: remove circular skills/skills symlink if it points to itself (ELOOP prevention)
+# This can happen when mc mirror creates a symlink that points back to the parent skills/ directory,
+# causing OpenClaw's skills watcher to fail with "too many symbolic links" (ELOOP)
+if [ -L "${HOME}/skills/skills" ]; then
+    LINK_TARGET=$(readlink "${HOME}/skills/skills" 2>/dev/null || true)
+    if [ "${LINK_TARGET}" = "${HOME}/skills" ] || [ "${LINK_TARGET}" = "." ]; then
+        rm -f "${HOME}/skills/skills"
+        log "Removed circular symlink: skills/skills -> ${LINK_TARGET}"
+    fi
+fi
 log "Worker config pulled successfully"
 
 # Restore skills from MinIO if skills directory is empty but skills-lock.json exists
