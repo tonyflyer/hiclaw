@@ -17,7 +17,7 @@ fi
 # ============================================================
 # Fix HTTP proxy interference
 # Bypass proxy for HiClaw internal domains and the configured LLM endpoint.
-# Docker Desktop may inject the host's HTTP proxy into the container.
+# Docker Desktop may inject the host's HTTP proxy into the container (both cases).
 # ============================================================
 _LLM_PROXY_BYPASS=""
 if [ -n "${HICLAW_OPENAI_BASE_URL}" ]; then
@@ -27,8 +27,12 @@ if [ -n "${HICLAW_OPENAI_BASE_URL}" ]; then
     _LLM_HOST="${_LLM_HOST%%:*}"
     [ -n "${_LLM_HOST}" ] && _LLM_PROXY_BYPASS=",${_LLM_HOST}"
 fi
-export no_proxy="${no_proxy},hiclaw.io,localhost,127.0.0.1${_LLM_PROXY_BYPASS}"
-export NO_PROXY="${NO_PROXY},hiclaw.io,localhost,127.0.0.1${_LLM_PROXY_BYPASS}"
+# Clear lowercase proxy vars injected by Docker Desktop (e.g., http_proxy=http://127.0.0.1:4001)
+# They point to the host proxy which is unreachable from inside the container.
+export http_proxy=""
+export https_proxy=""
+export no_proxy="${no_proxy},hiclaw.io,localhost,127.0.0.1,*.hiclaw.io${_LLM_PROXY_BYPASS}"
+export NO_PROXY="${NO_PROXY},hiclaw.io,localhost,127.0.0.1,*.hiclaw.io${_LLM_PROXY_BYPASS}"
 
 
 MATRIX_DOMAIN="${HICLAW_MATRIX_DOMAIN:-matrix-local.hiclaw.io:8080}"

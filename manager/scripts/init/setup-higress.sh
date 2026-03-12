@@ -160,10 +160,12 @@ if [ -n "${HICLAW_LLM_API_KEY}" ]; then
                 OC_DOMAIN="${OC_URL_STRIP%%/*}"
                 echo "${OC_DOMAIN}" | grep -q ':' && { OC_PORT="${OC_DOMAIN##*:}"; OC_DOMAIN="${OC_DOMAIN%:*}"; }
 
-                # Resolve docker.for.mac.localhost to actual IP for Docker Desktop compatibility
-                if echo "${OC_DOMAIN}" | grep -q 'docker.for.mac.localhost'; then
+                # Resolve Docker Desktop host aliases to actual IP for Envoy/static service compatibility.
+                # Both docker.for.mac.localhost and host.docker.internal are Docker Desktop aliases
+                # but Envoy does not resolve them reliably — resolve with Python and use static IP.
+                if echo "${OC_DOMAIN}" | grep -qE 'docker.for.mac.localhost|host.docker.internal'; then
                     OC_RESOLVED_IP=$(python3 -c "import socket; addrs=socket.getaddrinfo('${OC_DOMAIN}', None, socket.AF_INET); print(addrs[0][4][0]) if addrs else print('${OC_DOMAIN}')" 2>/dev/null || echo "${OC_DOMAIN}")
-                    if [ "${OC_RESOLVED_IP}" != "${OC_DOMAIN}" ] && echo "${OC_RESOLVED_IP}" | grep -qE "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$" ]; then
+                    if [ "${OC_RESOLVED_IP}" != "${OC_DOMAIN}" ] && echo "${OC_RESOLVED_IP}" | grep -qE "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$"; then
                         log "Resolved ${OC_DOMAIN} to ${OC_RESOLVED_IP} for Docker Desktop"
                         OC_DOMAIN="${OC_RESOLVED_IP}"
                     fi
