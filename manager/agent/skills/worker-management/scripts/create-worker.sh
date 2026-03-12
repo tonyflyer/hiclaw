@@ -293,8 +293,6 @@ ROOM_RESP=$(curl -sf -X POST http://127.0.0.1:6167/_matrix/client/v3/createRoom 
             "@'"${WORKER_ID}"':'"${MATRIX_DOMAIN}"'"
         ],
         "preset": "trusted_private_chat"
-        ],
-        "preset": "trusted_private_chat"
     }' 2>/dev/null) || _fail "Failed to create Matrix room"
 
 ROOM_ID=$(echo "${ROOM_RESP}" | jq -r '.room_id // empty')
@@ -302,6 +300,30 @@ if [ -z "${ROOM_ID}" ]; then
     _fail "Failed to create Matrix room: ${ROOM_RESP}"
 fi
 log "  Room created: ${ROOM_ID}"
+
+# Have admin join the room
+ADMIN_MATRIX_TOKEN=$(curl -s -X POST http://127.0.0.1:6167/_matrix/client/v3/login \
+    -H 'Content-Type: application/json' \
+    -d '{"type":"m.login.password","identifier":{"type":"m.id.user","user":"'"${ADMIN_USER}"'"},"password":"'"${HICLAW_ADMIN_PASSWORD}"'"}' \
+    2>/dev/null | jq -r '.access_token // empty')
+if [ -n "${ADMIN_MATRIX_TOKEN}" ]; then
+    ENCODED_ROOM_ID=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${ROOM_ID}'))")
+    curl -s -X POST "http://127.0.0.1:6167/_matrix/client/v3/rooms/${ENCODED_ROOM_ID}/join" \
+        -H "Authorization: Bearer ${ADMIN_MATRIX_TOKEN}" \
+        -H 'Content-Type: application/json' -d '{}' > /dev/null 2>&1 || true
+    log "  Admin joined room"
+else
+    log "  WARNING: Could not obtain admin Matrix token — admin may need to manually join room ${ROOM_ID}"
+fi
+
+# Have worker join the room
+if [ -n "${WORKER_MATRIX_TOKEN}" ]; then
+    ENCODED_ROOM_ID=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${ROOM_ID}'))")
+    curl -s -X POST "http://127.0.0.1:6167/_matrix/client/v3/rooms/${ENCODED_ROOM_ID}/join" \
+        -H "Authorization: Bearer ${WORKER_MATRIX_TOKEN}" \
+        -H 'Content-Type: application/json' -d '{}' > /dev/null 2>&1 || true
+    log "  Worker joined room"
+fi
 
 # ============================================================
 # Step 3: Create Higress Consumer (key-auth)

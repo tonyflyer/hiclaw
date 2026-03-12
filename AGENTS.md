@@ -437,14 +437,26 @@ create-worker.sh --name collector --browser
   "browser": {
     "enabled": true,
     "headless": false,
-    "ssrfPolicy": {
-      "dangerouslyAllowPrivateNetwork": true
-    },
+    "headless": false,
+    "defaultProfile": "openclaw"
     "defaultProfile": "openclaw"
   }
 }
 ```
 
-**Requirements**: The `openclaw-base` image includes `chromium` (installed via apt). No additional setup needed.
+**Requirements**: The `openclaw-base` image does NOT include Chromium. Instead, it is lazily installed at Worker startup when `ENABLE_BROWSER=true` is set. This avoids bloating the base image for Workers that don't need browser functionality.
 
 **Security note**: Only enable browser for Workers that genuinely need web scraping. Browser capability increases attack surface via prompt injection through web content.
+
+
+### create-worker.sh: Room Creation and Auto-Join
+
+**Behavior**: When creating a Worker, `create-worker.sh` (Step 2) creates a 3-party Matrix room (Manager + Admin + Worker) and automatically joins both admin and worker into the room. This ensures the room is immediately visible in Element Web without any manual steps.
+
+**Key implementation details**:
+- Manager creates the room (with admin and worker as invitees)
+- Admin Matrix token is obtained via password login using `HICLAW_ADMIN_PASSWORD`
+- Admin and Worker both explicitly join via `/_matrix/client/v3/rooms/{roomId}/join`
+- Failure to get admin token is non-fatal: a WARNING is logged and the room is still created
+
+**Known past bug (fixed)**: The original Step 2 JSON payload had duplicate `]` and `"preset"` lines, causing malformed JSON that silently failed room creation. Also, `ADMIN_USER` was not set (fixed by reading from `HICLAW_ADMIN_USER` env var). Both bugs are fixed in commit `2ffa70d`.
