@@ -38,7 +38,7 @@ RUN if [ -n "${APT_MIRROR}" ]; then \
     fi && \
     apt-get update && apt-get install -y \
     git python3 make g++ curl \
-    jq nginx gettext-base openssh-client ca-certificates procps tzdata chromium
+    jq nginx gettext-base openssh-client ca-certificates procps tzdata \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js 22 (all-in-one doesn't include Node.js)
@@ -80,6 +80,10 @@ RUN git clone --depth 1 --branch v2026.3.8 \
 # Install mcporter
 RUN npm install -g mcporter && \
     rm -rf /root/.npm
+
+# Note: Playwright Chromium is NOT pre-installed here to keep image size small.
+# Workers that need browser support (--browser flag) install it at startup via
+# worker-entrypoint.sh when ENABLE_BROWSER=true is set.
 
 # Install skills CLI for agent skills ecosystem (skills.sh)
 # This enables workers to discover and install skills from the open agent skills ecosystem

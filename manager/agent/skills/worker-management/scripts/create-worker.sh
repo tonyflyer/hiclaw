@@ -610,6 +610,9 @@ _build_extra_env() {
     if [ -n "${CONSOLE_PORT}" ]; then
         items+=("HICLAW_CONSOLE_PORT=${CONSOLE_PORT}")
     fi
+    if [ "${ENABLE_BROWSER}" = "true" ]; then
+        items+=("ENABLE_BROWSER=true")
+    fi
     if [ ${#items[@]} -eq 0 ]; then
         echo "[]"
     else

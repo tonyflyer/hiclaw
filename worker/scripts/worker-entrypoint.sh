@@ -132,6 +132,25 @@ if [ -f "${WORKSPACE}/mcporter-servers.json" ]; then
 fi
 
 # ============================================================
+# Step 4b: Install Playwright Chromium if Browser tool is enabled
+# ============================================================
+if [ "${ENABLE_BROWSER}" = "true" ]; then
+    PLAYWRIGHT_BIN="/opt/openclaw/node_modules/.bin/playwright-core"
+    CHROMIUM_MARKER="/root/.cache/ms-playwright/.chromium-installed"
+    if [ ! -f "${CHROMIUM_MARKER}" ] && [ -f "${PLAYWRIGHT_BIN}" ]; then
+        log "Browser tool enabled — installing Playwright Chromium (first-time, may take a few minutes)..."
+        if "${PLAYWRIGHT_BIN}" install --with-deps chromium 2>&1 | tail -5; then
+            touch "${CHROMIUM_MARKER}"
+            log "Playwright Chromium installed successfully"
+        else
+            log "WARNING: Playwright Chromium install failed — browser tool may not work"
+        fi
+    else
+        log "Browser tool enabled — Playwright Chromium already installed"
+    fi
+fi
+
+# ============================================================
 # Step 5: Launch OpenClaw Worker Agent
 # ============================================================
 log "Starting Worker Agent: ${WORKER_NAME}"
