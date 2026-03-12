@@ -170,7 +170,7 @@ The script handles everything: Matrix registration, room creation, Higress consu
 **⚠️ CRITICAL: Use ONLY `create-worker.sh` for creating new Workers.**
 
 ```bash
-bash /opt/hiclaw/agent/skills/worker-management/scripts/create-worker.sh --name <WORKER_NAME> [--model <MODEL_ID>] [--mcp-servers s1,s2] [--skills s1,s2] [--find-skills] [--skills-api-url <URL>] [--remote] [--runtime openclaw|copaw]
+VK|bash /opt/hiclaw/agent/skills/worker-management/scripts/create-worker.sh --name <WORKER_NAME> [--model <MODEL_ID>] [--mcp-servers s1,s2] [--skills s1,s2] [--find-skills] [--skills-api-url <URL>] [--remote] [--runtime openclaw|copaw] [--browser|--no-browser]
 ```
 
 **✅ CORRECT:**
@@ -193,7 +193,9 @@ lifecycle-worker.sh --name alice
 - `--find-skills`: enable find-skills capability (allows Worker to discover and install skills from skills.sh or private registry)
 - `--skills-api-url`: custom skills registry URL (default: https://skills.sh). Only used when `--find-skills` is set
 - `--remote`: force output install command instead of starting container locally
-- `--runtime`: `openclaw` (default) or `copaw`. Use `copaw` for Python-based Workers that run via `pip install copaw-worker` instead of a container image
+YY|- `--runtime`: `openclaw` (default) or `copaw`. Use `copaw` for Python-based Workers that run via `pip install copaw-worker` instead of a container image
+- `--browser`: enable Browser tool for web scraping (requires openclaw runtime). Adds chromium to the Worker container, enables browser automation
+- `--no-browser`: explicitly disable Browser tool (default is false)
 **Runtime: `copaw`**
 
 **Chinese Worker Names**: The script automatically converts Chinese display names to ASCII-compatible system IDs for Matrix usernames, container names, etc. The display name is preserved in the Worker's SOUL.md and the registry.

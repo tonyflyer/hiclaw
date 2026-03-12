@@ -413,3 +413,38 @@ docker exec hiclaw-manager openclaw --version
 ```
 
 **If DM room creation fails** (e.g., admin account not yet registered): the script logs a WARNING and continues — this is non-fatal. The user can create the DM room manually in Element Web.
+
+
+### Worker Browser Tool
+
+**Feature**: Enables the OpenClaw Browser tool in a Worker, allowing web scraping and browser automation via Chromium.
+
+**Usage**: Add `--browser` flag when creating a Worker:
+```bash
+create-worker.sh --name collector --browser
+```
+
+**How it works**:
+1. `create-worker.sh --browser` sets `ENABLE_BROWSER=true`
+2. This is passed to `generate-worker-config.sh` as a 5th argument
+3. The script exports `WORKER_BROWSER_ENABLED=true`
+4. `worker-openclaw.json.tmpl` renders `"enabled": true` in the browser block
+5. OpenClaw starts Chromium inside the Worker container
+
+**Configuration in Worker's `openclaw.json`**:
+```json
+{
+  "browser": {
+    "enabled": true,
+    "headless": false,
+    "ssrfPolicy": {
+      "dangerouslyAllowPrivateNetwork": true
+    },
+    "defaultProfile": "openclaw"
+  }
+}
+```
+
+**Requirements**: The `openclaw-base` image includes `chromium` (installed via apt). No additional setup needed.
+
+**Security note**: Only enable browser for Workers that genuinely need web scraping. Browser capability increases attack surface via prompt injection through web content.

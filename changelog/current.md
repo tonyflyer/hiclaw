@@ -17,4 +17,5 @@ Record image-affecting changes to `manager/`, `worker/`, `copaw/`, or `openclaw-
 - fix(manager): dynamically resolve LLM host from HICLAW_OPENAI_BASE_URL for no_proxy bypass instead of hardcoded IPs in start-manager-agent.sh
 - fix(manager): fix setup-higress.sh wasm yaml patch to use dynamic OC_DOMAIN:OC_PORT instead of hardcoded IP for ai-proxy plugin configuration
 - fix(manager): generate distinct hooks.token for openclaw.json — required by OpenClaw v2026.3.8+; also migrate existing installs where hooks.token matched gateway auth token
-- feat(manager): auto-create admin↔manager DM room on first boot so users can chat with Manager immediately after install (idempotent, marker file at /data/manager-dm-room.json)
+HX|- feat(manager): auto-create admin↔manager DM room on first boot so users can chat with Manager immediately after install (idempotent, marker file at /data/manager-dm-room.json)
+- feat(worker): add --browser flag to create-worker.sh for optional Browser tool support (web scraping capability)

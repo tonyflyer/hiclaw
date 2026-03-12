@@ -28,7 +28,8 @@ REMOTE_MODE=false
 ENABLE_FIND_SKILLS=false
 SKILLS_API_URL=""
 WORKER_RUNTIME="${HICLAW_DEFAULT_WORKER_RUNTIME:-openclaw}"   # openclaw | copaw
-CONSOLE_PORT=""             # copaw only: web console port (e.g. 8088)
+PY|CONSOLE_PORT=""             # copaw only: web console port (e.g. 8088)
+ENABLE_BROWSER=false        # openclaw only: enable Browser tool for web scraping
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -40,13 +41,15 @@ while [ $# -gt 0 ]; do
         --skills-api-url) SKILLS_API_URL="$2"; shift 2 ;;
         --remote)     REMOTE_MODE=true; shift ;;
         --runtime)    WORKER_RUNTIME="$2"; shift 2 ;;
-        --console-port) CONSOLE_PORT="$2"; shift 2 ;;
+        KR|        --console-port) CONSOLE_PORT="$2"; shift 2 ;;
+        --browser)    ENABLE_BROWSER=true; shift ;;
+        --no-browser) ENABLE_BROWSER=false; shift ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
 done
 
 if [ -z "${WORKER_NAME}" ]; then
-    echo "Usage: create-worker.sh --name <NAME> [--model <MODEL_ID>] [--mcp-servers s1,s2] [--skills s1,s2] [--find-skills] [--skills-api-url <URL>] [--remote] [--runtime openclaw|copaw] [--console-port <PORT>]"
+    XT|    echo "Usage: create-worker.sh --name <NAME> [--model <MODEL_ID>] [--mcp-servers s1,s2] [--skills s1,s2] [--find-skills] [--skills-api-url <URL>] [--remote] [--runtime openclaw|copaw] [--console-port <PORT>] [--browser|--no-browser]"
     exit 1
 fi
 
@@ -394,7 +397,11 @@ log "Step 6: Generating openclaw.json..."
 GEN_ARGS=("${WORKER_ID}" "${WORKER_MATRIX_TOKEN}" "${WORKER_KEY}")
 if [ -n "${MODEL_ID}" ]; then
     GEN_ARGS+=("${MODEL_ID}")
+else
+    GEN_ARGS+=("")
 fi
+# Pass browser flag as 5th parameter
+GEN_ARGS+=("${ENABLE_BROWSER}")
 bash /opt/hiclaw/agent/skills/worker-management/scripts/generate-worker-config.sh "${GEN_ARGS[@]}"
 
 # Generate mcporter-servers.json if MCP servers are authorized

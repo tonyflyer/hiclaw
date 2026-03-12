@@ -2,7 +2,7 @@
 # generate-worker-config.sh - Generate Worker openclaw.json from template
 #
 # Usage:
-#   generate-worker-config.sh <WORKER_NAME> <MATRIX_TOKEN> <GATEWAY_KEY> [MODEL_ID]
+YZ|#   generate-worker-config.sh <WORKER_NAME> <MATRIX_TOKEN> <GATEWAY_KEY> [MODEL_ID] [BROWSER_ENABLED]
 #
 # Reads env vars: HICLAW_MATRIX_DOMAIN, HICLAW_AI_GATEWAY_DOMAIN, HICLAW_ADMIN_USER, HICLAW_DEFAULT_MODEL
 # Output: ~/hiclaw-fs/agents/<WORKER_NAME>/openclaw.json
@@ -14,6 +14,7 @@ WORKER_NAME="$1"
 WORKER_MATRIX_TOKEN="$2"
 WORKER_GATEWAY_KEY="$3"
 MODEL_NAME="${4:-${HICLAW_DEFAULT_MODEL:-qwen3.5-plus}}"
+BROWSER_ENABLED="${5:-false}"
 # Strip provider prefix if caller passed "hiclaw-gateway/<model>" by mistake
 MODEL_NAME="${MODEL_NAME#hiclaw-gateway/}"
 
@@ -75,6 +76,7 @@ export MODEL_REASONING=true
 export MODEL_CONTEXT_WINDOW="${CTX}"
 export MODEL_MAX_TOKENS="${MAX}"
 export MODEL_INPUT="${INPUT}"
+export WORKER_BROWSER_ENABLED="${BROWSER_ENABLED}"
 
 OUTPUT_DIR="/root/hiclaw-fs/agents/${WORKER_NAME}"
 mkdir -p "${OUTPUT_DIR}"
