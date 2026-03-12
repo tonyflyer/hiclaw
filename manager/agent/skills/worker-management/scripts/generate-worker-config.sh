@@ -2,7 +2,7 @@
 # generate-worker-config.sh - Generate Worker openclaw.json from template
 #
 # Usage:
-YZ|#   generate-worker-config.sh <WORKER_NAME> <MATRIX_TOKEN> <GATEWAY_KEY> [MODEL_ID] [BROWSER_ENABLED]
+#   generate-worker-config.sh <WORKER_NAME> <MATRIX_TOKEN> <GATEWAY_KEY> [MODEL_ID] [BROWSER_ENABLED]
 #
 # Reads env vars: HICLAW_MATRIX_DOMAIN, HICLAW_AI_GATEWAY_DOMAIN, HICLAW_ADMIN_USER, HICLAW_DEFAULT_MODEL
 # Output: ~/hiclaw-fs/agents/<WORKER_NAME>/openclaw.json

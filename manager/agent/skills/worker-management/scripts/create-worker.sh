@@ -28,7 +28,7 @@ REMOTE_MODE=false
 ENABLE_FIND_SKILLS=false
 SKILLS_API_URL=""
 WORKER_RUNTIME="${HICLAW_DEFAULT_WORKER_RUNTIME:-openclaw}"   # openclaw | copaw
-PY|CONSOLE_PORT=""             # copaw only: web console port (e.g. 8088)
+CONSOLE_PORT=""             # copaw only: web console port (e.g. 8088)
 ENABLE_BROWSER=false        # openclaw only: enable Browser tool for web scraping
 
 while [ $# -gt 0 ]; do
@@ -165,6 +165,7 @@ fi
 
 if [ -z "${HIGRESS_COOKIE_FILE}" ] || [ ! -s "${HIGRESS_COOKIE_FILE}" ]; then
     HIGRESS_COOKIE_FILE="/tmp/higress-session-cookie-worker-create"
+    ADMIN_USER="${HICLAW_ADMIN_USER:-admin}"
     ADMIN_PASSWORD="${HICLAW_ADMIN_PASSWORD:-admin}"
     curl -sf -o /dev/null -X POST http://127.0.0.1:8001/session/login \
         -H 'Content-Type: application/json' \
