@@ -24,3 +24,4 @@ Record image-affecting changes to `manager/`, `worker/`, `copaw/`, or `openclaw-
 - fix(worker): guard against circular skills/skills symlink (ELOOP prevention) in worker-entrypoint.sh
 - fix(worker): add reasoning model detection to generate-worker-config.sh — non-reasoning models (e.g. qwen2.5-*) now correctly get reasoning=false instead of hardcoded true
 - fix(manager): inject CSS fix for Element Web @mention autocomplete visibility — override contain:strict on .mx_RoomView_wrapper via nginx sub_filter
+- feat(manager): bundle Higress Wasm plugins (ai-proxy, ai-statistics) into image via Dockerfile COPY — eliminates manual docker cp injection and OCI download failures

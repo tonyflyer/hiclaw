@@ -63,6 +63,7 @@ COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY scripts/ /opt/hiclaw/scripts/
 COPY agent/ /opt/hiclaw/agent/
 COPY configs/ /opt/hiclaw/configs/
+COPY wasm-plugins/ /opt/hiclaw/wasm-plugins/
 
 ARG BUILTIN_VERSION=latest
 RUN echo "${BUILTIN_VERSION}" > /opt/hiclaw/agent/.builtin-version
