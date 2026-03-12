@@ -14,3 +14,7 @@ Record image-affecting changes to `manager/`, `worker/`, `copaw/`, or `openclaw-
 - feat(manager): add reasoning model detection and automatic thinking mode configuration in start-manager-agent.sh
 - feat(manager): add persistent OpenClaw update mechanism — update-openclaw.sh script + workspace version detection in start-manager-agent.sh (updates survive container restarts via ~/hiclaw-manager mount)
 - fix(openclaw-base): upgrade OpenClaw to v2026.3.8 (from v2026.3.1)
+- fix(manager): dynamically resolve LLM host from HICLAW_OPENAI_BASE_URL for no_proxy bypass instead of hardcoded IPs in start-manager-agent.sh
+- fix(manager): fix setup-higress.sh wasm yaml patch to use dynamic OC_DOMAIN:OC_PORT instead of hardcoded IP for ai-proxy plugin configuration
+- fix(manager): generate distinct hooks.token for openclaw.json — required by OpenClaw v2026.3.8+; also migrate existing installs where hooks.token matched gateway auth token
+- feat(manager): auto-create admin↔manager DM room on first boot so users can chat with Manager immediately after install (idempotent, marker file at /data/manager-dm-room.json)

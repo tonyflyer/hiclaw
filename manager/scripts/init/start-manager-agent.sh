@@ -14,6 +14,22 @@ if [ -n "${TZ}" ] && [ -f "/usr/share/zoneinfo/${TZ}" ]; then
     echo "${TZ}" > /etc/timezone
     log "Timezone set to ${TZ}"
 fi
+# ============================================================
+# Fix HTTP proxy interference
+# Bypass proxy for HiClaw internal domains and the configured LLM endpoint.
+# Docker Desktop may inject the host's HTTP proxy into the container.
+# ============================================================
+_LLM_PROXY_BYPASS=""
+if [ -n "${HICLAW_OPENAI_BASE_URL}" ]; then
+    _LLM_URL_TMP="${HICLAW_OPENAI_BASE_URL#https://}"
+    _LLM_URL_TMP="${_LLM_URL_TMP#http://}"
+    _LLM_HOST="${_LLM_URL_TMP%%/*}"
+    _LLM_HOST="${_LLM_HOST%%:*}"
+    [ -n "${_LLM_HOST}" ] && _LLM_PROXY_BYPASS=",${_LLM_HOST}"
+fi
+export no_proxy="${no_proxy},hiclaw.io,localhost,127.0.0.1${_LLM_PROXY_BYPASS}"
+export NO_PROXY="${NO_PROXY},hiclaw.io,localhost,127.0.0.1${_LLM_PROXY_BYPASS}"
+
 
 MATRIX_DOMAIN="${HICLAW_MATRIX_DOMAIN:-matrix-local.hiclaw.io:8080}"
 AI_GATEWAY_DOMAIN="${HICLAW_AI_GATEWAY_DOMAIN:-aigw-local.hiclaw.io}"
@@ -167,6 +183,58 @@ fi
 log "Manager Matrix token obtained (token prefix: ${MANAGER_TOKEN:0:10}...)"
 
 # ============================================================
+# Create Admin-Manager DM Room (idempotent)
+# ============================================================
+MANAGER_DM_ROOM_FILE="/data/manager-dm-room.json"
+if [ ! -f "${MANAGER_DM_ROOM_FILE}" ]; then
+    log "Creating admin-manager DM room..."
+
+    # Get admin token via Matrix password login
+    _dm_admin_login_resp=$(curl -sf -X POST http://127.0.0.1:6167/_matrix/client/v3/login \
+        -H 'Content-Type: application/json' \
+        -d '{
+            "type": "m.login.password",
+            "identifier": {"type": "m.id.user", "user": "'"${HICLAW_ADMIN_USER}"'"},
+            "password": "'"${HICLAW_ADMIN_PASSWORD}"'"
+        }' 2>&1) || true
+
+    _dm_admin_token=$(echo "${_dm_admin_login_resp}" | jq -r '.access_token' 2>/dev/null)
+
+    if [ -z "${_dm_admin_token}" ] || [ "${_dm_admin_token}" = "null" ]; then
+        log "WARNING: Failed to obtain admin Matrix token, skipping DM room creation"
+    else
+        # Create DM room (admin invites manager)
+        _dm_create_resp=$(curl -sf -X POST http://127.0.0.1:6167/_matrix/client/v3/createRoom \
+            -H 'Content-Type: application/json' \
+            -H "Authorization: Bearer ${_dm_admin_token}" \
+            -d '{
+                "is_direct": true,
+                "invite": ["@manager:'"${MATRIX_DOMAIN}"'"],
+                "preset": "trusted_private_chat"
+            }' 2>&1) || true
+
+        _dm_room_id=$(echo "${_dm_create_resp}" | jq -r '.room_id' 2>/dev/null)
+
+        if [ -z "${_dm_room_id}" ] || [ "${_dm_room_id}" = "null" ]; then
+            log "WARNING: Failed to create DM room (response: ${_dm_create_resp}), skipping"
+        else
+            # Manager joins the room
+            _dm_join_resp=$(curl -sf -X POST "http://127.0.0.1:6167/_matrix/client/v3/join/${_dm_room_id}" \
+                -H 'Content-Type: application/json' \
+                -H "Authorization: Bearer ${MANAGER_TOKEN}" 2>&1) || true
+            _dm_join_result=$(echo "${_dm_join_resp}" | jq -r '.room_id' 2>/dev/null)
+
+            if [ -z "${_dm_join_result}" ] || [ "${_dm_join_result}" = "null" ]; then
+                log "WARNING: Manager failed to join DM room (response: ${_dm_join_resp}), skipping"
+            else
+                # Write marker file with room_id
+                echo "{\"room_id\":\"${_dm_room_id}\",\"created_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > "${MANAGER_DM_ROOM_FILE}"
+                log "Admin-Manager DM room created: ${_dm_room_id}"
+            fi
+        fi
+    fi
+fi
+# ============================================================
 # Initialize Higress Console (Session Cookie auth)
 # ============================================================
 COOKIE_FILE="/tmp/higress-session-cookie"
@@ -255,6 +323,18 @@ export HIGRESS_COOKIE_FILE="${COOKIE_FILE}"
 log "Generating Manager openclaw.json..."
 export MANAGER_MATRIX_TOKEN="${MANAGER_TOKEN}"
 export MANAGER_GATEWAY_KEY="${HICLAW_MANAGER_GATEWAY_KEY}"
+# Generate a distinct hooks token (must differ from gateway auth token per OpenClaw v2026.3.8+)
+export MANAGER_HOOKS_KEY=$(openssl rand -hex 32)
+# Migration: if existing openclaw.json has hooks.token == gateway.auth.token, regenerate it
+if [ -f /root/manager-workspace/openclaw.json ]; then
+    _existing_hooks=$(jq -r '.hooks.token // ""' /root/manager-workspace/openclaw.json 2>/dev/null)
+    if [ "${_existing_hooks}" = "${HICLAW_MANAGER_GATEWAY_KEY}" ]; then
+        log "Migrating hooks.token: generating distinct token (was same as gateway auth token)..."
+        jq --arg t "${MANAGER_HOOKS_KEY}" '.hooks.token = $t' \
+            /root/manager-workspace/openclaw.json > /tmp/openclaw.hooks.tmp && \
+            mv /tmp/openclaw.hooks.tmp /root/manager-workspace/openclaw.json
+    fi
+fi
 
 # Resolve model parameters based on model name
 MODEL_NAME="${HICLAW_DEFAULT_MODEL:-qwen3.5-plus}"
@@ -304,7 +384,7 @@ if [ -f /root/manager-workspace/openclaw.json ]; then
        --argjson max "${MODEL_MAX_TOKENS}" \
        --argjson reasoning "${MODEL_REASONING}" \
        --argjson input "${MODEL_INPUT}" \
-       '.channels.matrix.accessToken = $token | .hooks.token = $key | .models.providers["hiclaw-gateway"].apiKey = $key
+       '.channels.matrix.accessToken = $token | .models.providers["hiclaw-gateway"].apiKey = $key
         | .models.providers["hiclaw-gateway"].models[0].id = $model
         | .models.providers["hiclaw-gateway"].models[0].name = $model
         | .models.providers["hiclaw-gateway"].models[0].contextWindow = $ctx

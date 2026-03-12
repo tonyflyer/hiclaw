@@ -394,3 +394,22 @@ docker exec hiclaw-manager openclaw --version
 - `manager/Dockerfile` — PATH includes workspace bin dir with priority over image bin dir
 
 **Workspace path**: `/root/manager-workspace/openclaw-runtime/` (persisted via `~/hiclaw-manager` host mount)
+
+
+### Auto-Created Admin↔Manager DM Room
+
+**Behavior**: On first boot, `start-manager-agent.sh` automatically creates a Matrix DM room between the admin user and the Manager Agent. This means users can open Element Web immediately after install and start chatting with the Manager — no manual room creation needed.
+
+**How it works**:
+1. Admin logs in via Matrix API to get a token
+2. Admin creates a DM room (`is_direct: true`, `preset: trusted_private_chat`) and invites `@manager:<domain>`
+3. Manager joins the room using its own token
+4. Room ID is written to `/data/manager-dm-room.json` (marker file)
+5. On subsequent restarts, the marker file is detected and the block is skipped (idempotent)
+
+**Marker file**: `/data/manager-dm-room.json`
+```json
+{"room_id": "!abc123:matrix-local.hiclaw.io:18080", "created_at": "2026-03-12T00:00:00Z"}
+```
+
+**If DM room creation fails** (e.g., admin account not yet registered): the script logs a WARNING and continues — this is non-fatal. The user can create the DM room manually in Element Web.
