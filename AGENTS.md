@@ -427,24 +427,25 @@ create-worker.sh --name collector --browser
 **How it works**:
 1. `create-worker.sh --browser` sets `ENABLE_BROWSER=true`
 2. This is passed to `generate-worker-config.sh` as a 5th argument
-3. The script exports `WORKER_BROWSER_ENABLED=true`
+3. The script exports `WORKER_BROWSER_ENABLED=true` and `WORKER_BROWSER_EXECUTABLE_PATH=/usr/bin/chromium`
 4. `worker-openclaw.json.tmpl` renders `"enabled": true` in the browser block
-5. OpenClaw starts Chromium inside the Worker container
+5. At Worker startup, `worker-entrypoint.sh` installs Playwright Chromium (lazily, first-time only)
+6. After installation, creates `/usr/bin/chromium` symlink → Playwright's `chrome` binary
+7. OpenClaw finds Chromium via its fixed path search list (`/usr/bin/chromium`)
 
 **Configuration in Worker's `openclaw.json`**:
 ```json
 {
   "browser": {
     "enabled": true,
+    "executablePath": "/usr/bin/chromium",
     "headless": false,
-    "headless": false,
-    "defaultProfile": "openclaw"
     "defaultProfile": "openclaw"
   }
 }
 ```
 
-**Requirements**: The `openclaw-base` image does NOT include Chromium. Instead, it is lazily installed at Worker startup when `ENABLE_BROWSER=true` is set. This avoids bloating the base image for Workers that don't need browser functionality.
+**Requirements**: The `openclaw-base` image does NOT include Chromium. Instead, it is lazily installed at Worker startup when `ENABLE_BROWSER=true` is set. A `/usr/bin/chromium` symlink is created to bridge Playwright's installation path with OpenClaw's browser search paths. This avoids bloating the base image for Workers that don't need browser functionality.
 
 **Security note**: Only enable browser for Workers that genuinely need web scraping. Browser capability increases attack surface via prompt injection through web content.
 

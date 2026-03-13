@@ -8,6 +8,12 @@
 
 set -e
 
+# Clear proxy environment variables that Docker Desktop may inject (e.g., Parallels proxy)
+# These interfere with apt-get, curl, and other network operations inside the container
+unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy no_proxy NO_PROXY 2>/dev/null || true
+export HTTP_PROXY= HTTPS_PROXY= http_proxy= https_proxy=
+
+
 WORKER_NAME="${HICLAW_WORKER_NAME:?HICLAW_WORKER_NAME is required}"
 FS_ENDPOINT="${HICLAW_FS_ENDPOINT:?HICLAW_FS_ENDPOINT is required}"
 FS_ACCESS_KEY="${HICLAW_FS_ACCESS_KEY:?HICLAW_FS_ACCESS_KEY is required}"
@@ -103,23 +109,6 @@ EOF
 fi
 
 log "HOME set to ${HOME} (workspace files will be synced to MinIO)"
-#MS|
-#KM|# Create exec-approvals.json for container mode (no systemd, exec needs gateway mode)
-#JB|# This allows exec tool to work in Docker containers without systemctl
-#JB|mkdir -p "${HOME}/.openclaw"
-#JB|if [ ! -f "${HOME}/.openclaw/exec-approvals.json" ]; then
-#JB|    cat > "${HOME}/.openclaw/exec-approvals.json" << 'EOF'
-#JB|{
-#JB|  "security": "full",
-#JB|  "ask": "off",
-#JB|  "autoAllowSkills": true
-#JB|}
-#JB|EOF
-#JB|    log "Created exec-approvals.json for container mode"
-#JB|fi
-#JB|
-log "HOME set to ${HOME} (workspace files will be synced to MinIO)"
-
 # ============================================================
 # Step 3: Start file sync
 # ============================================================
@@ -132,7 +121,7 @@ log "HOME set to ${HOME} (workspace files will be synced to MinIO)"
 # - mc mirror itself only transfers changed files (incremental)
 (
     while true; do
-        # Check for files modified in the last 10 seconds
+        # Check for files modified in the last 10 seconds in workspace
         CHANGED=$(find "${WORKSPACE}/" -type f -newermt "10 seconds ago" 2>/dev/null | head -1)
         if [ -n "${CHANGED}" ]; then
             if ! mc mirror "${WORKSPACE}/" "hiclaw/hiclaw-storage/agents/${WORKER_NAME}/" --overwrite \
@@ -140,9 +129,18 @@ log "HOME set to ${HOME} (workspace files will be synced to MinIO)"
                 --exclude "mcporter-servers.json" --exclude ".agents/**" \
                 --exclude ".openclaw/**" --exclude ".cache/**" --exclude ".npm/**" \
                 --exclude ".local/**" --exclude ".mc/**" 2>&1; then
-                log "WARNING: Local->Remote sync failed"
+                log "WARNING: Local->Remote workspace sync failed"
             fi
         fi
+
+        # Check for files modified in the last 10 seconds in shared directory
+        SHARED_CHANGED=$(find "${HICLAW_ROOT}/shared/" -type f -newermt "10 seconds ago" 2>/dev/null | head -1)
+        if [ -n "${SHARED_CHANGED}" ]; then
+            if ! mc mirror "${HICLAW_ROOT}/shared/" "hiclaw/hiclaw-storage/shared/" --overwrite 2>&1; then
+                log "WARNING: Local->Remote shared sync failed"
+            fi
+        fi
+
         sleep 5
     done
 ) &
@@ -173,17 +171,45 @@ fi
 if [ "${ENABLE_BROWSER}" = "true" ]; then
     PLAYWRIGHT_BIN="/opt/openclaw/node_modules/.bin/playwright-core"
     CHROMIUM_MARKER="${HOME}/.cache/ms-playwright/.chromium-installed"
+
+    # Check if Chromium binary actually exists (marker may be synced from MinIO without the binary)
+    CHROMIUM_BIN_EXISTING=$(find "${HOME}/.cache/ms-playwright/" -name "chrome" -path "*/chrome-linux/*" 2>/dev/null | head -1)
+    if [ -f "${CHROMIUM_MARKER}" ] && [ -z "${CHROMIUM_BIN_EXISTING}" ]; then
+        log "Chromium marker exists but binary not found — removing stale marker for reinstall"
+        rm -f "${CHROMIUM_MARKER}"
+    fi
+
     if [ ! -f "${CHROMIUM_MARKER}" ] && [ -f "${PLAYWRIGHT_BIN}" ]; then
         log "Browser tool enabled — installing Playwright Chromium (first-time, may take a few minutes)..."
         mkdir -p "$(dirname "${CHROMIUM_MARKER}")"
-        if "${PLAYWRIGHT_BIN}" install --with-deps chromium 2>&1 | tail -5; then
+        # Use a temp file to capture exit code (pipe to tail swallows it)
+        INSTALL_LOG=$(mktemp)
+        if "${PLAYWRIGHT_BIN}" install --with-deps chromium > "${INSTALL_LOG}" 2>&1; then
             touch "${CHROMIUM_MARKER}"
+            tail -5 "${INSTALL_LOG}"
             log "Playwright Chromium installed successfully"
         else
+            tail -10 "${INSTALL_LOG}"
             log "WARNING: Playwright Chromium install failed — browser tool may not work"
         fi
+        rm -f "${INSTALL_LOG}"
     else
-        log "Browser tool enabled — Playwright Chromium already installed"
+        if [ -f "${CHROMIUM_MARKER}" ]; then
+            log "Browser tool enabled — Playwright Chromium already installed"
+        fi
+    fi
+
+    # Create /usr/bin/chromium symlink so OpenClaw can find the browser
+    # OpenClaw searches a fixed list of paths (/usr/bin/chromium, /usr/bin/google-chrome, etc.)
+    # Playwright installs Chromium to ~/.cache/ms-playwright/ which is not in that list
+    CHROMIUM_BIN=$(find "${HOME}/.cache/ms-playwright/" -name "chrome" -path "*/chrome-linux/*" 2>/dev/null | head -1)
+    if [ -n "${CHROMIUM_BIN}" ] && [ ! -e "/usr/bin/chromium" ]; then
+        ln -sf "${CHROMIUM_BIN}" /usr/bin/chromium
+        log "Created /usr/bin/chromium symlink -> ${CHROMIUM_BIN}"
+    elif [ -e "/usr/bin/chromium" ]; then
+        log "Browser tool: /usr/bin/chromium already exists"
+    elif [ -z "${CHROMIUM_BIN}" ]; then
+        log "WARNING: Chromium binary not found — /usr/bin/chromium symlink not created"
     fi
 fi
 

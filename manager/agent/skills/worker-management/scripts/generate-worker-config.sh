@@ -90,9 +90,10 @@ export MODEL_MAX_TOKENS="${MAX}"
 export MODEL_INPUT="${INPUT}"
 export WORKER_BROWSER_ENABLED="${BROWSER_ENABLED}"
 
-# Browser executable path: use Playwright's Chromium when browser is enabled
+# Browser executable path: use /usr/bin/chromium (symlinked to Playwright's Chromium at Worker startup)
+# worker-entrypoint.sh creates the symlink after installing Playwright Chromium
 if [ "${BROWSER_ENABLED}" = "true" ]; then
-    export WORKER_BROWSER_EXECUTABLE_PATH="${HOME}/.cache/ms-playwright/chromium-1208/chrome-linux/chrome"
+    export WORKER_BROWSER_EXECUTABLE_PATH="/usr/bin/chromium"
 else
     export WORKER_BROWSER_EXECUTABLE_PATH=""
 fi

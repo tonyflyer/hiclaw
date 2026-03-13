@@ -26,5 +26,12 @@ Record image-affecting changes to `manager/`, `worker/`, `copaw/`, or `openclaw-
 - fix(manager): inject CSS fix for Element Web @mention autocomplete visibility — override contain:strict on .mx_RoomView_wrapper via nginx sub_filter
 - feat(manager): bundle Higress Wasm plugins (ai-proxy, ai-statistics) into image via Dockerfile COPY — eliminates manual docker cp injection and OCI download failures
 - fix(manager): clear HTTP_PROXY/HTTPS_PROXY environment variables for all Higress programs in supervisord.conf — prevents Docker Desktop (Parallels) proxy from interfering with Envoy upstream LLM connections
-#WS|- feat(manager): add --soul parameter to create-worker.sh for deploying custom SOUL.md to Workers during creation
-#HB|- fix(worker): add browser.executablePath config for Playwright Chromium; add tools.exec.host=gateway to avoid systemctl; create exec-approvals.json at startup
+- feat(manager): add --soul parameter to create-worker.sh for deploying custom SOUL.md to Workers during creation
+- fix(worker): add browser.executablePath config for Playwright Chromium; add tools.exec.host=gateway to avoid systemctl; create exec-approvals.json at startup
+- fix(worker): create /usr/bin/chromium symlink to Playwright Chromium in worker-entrypoint.sh — fixes OpenClaw "No supported browser found" error
+- fix(worker): use /usr/bin/chromium as browser.executablePath in generate-worker-config.sh instead of HOME-relative path that resolves incorrectly on Manager
+- fix(worker): add shared directory (/root/hiclaw-fs/shared/) change detection to Local->Remote file sync in worker-entrypoint.sh
+- fix(worker): remove duplicate exec-approvals.json code block and duplicate log line in worker-entrypoint.sh
+- fix(worker): clear HTTP_PROXY/HTTPS_PROXY environment variables at entrypoint startup — prevents Docker Desktop proxy from interfering with apt-get during Playwright Chromium installation
+- fix(worker): detect stale Chromium marker file (synced from MinIO without binary) and remove it to trigger reinstall
+- fix(worker): fix Playwright install exit code detection — pipe to tail swallowed non-zero exit codes; now uses temp file for proper error propagation
