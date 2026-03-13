@@ -35,3 +35,5 @@ Record image-affecting changes to `manager/`, `worker/`, `copaw/`, or `openclaw-
 - fix(worker): clear HTTP_PROXY/HTTPS_PROXY environment variables at entrypoint startup — prevents Docker Desktop proxy from interfering with apt-get during Playwright Chromium installation
 - fix(worker): detect stale Chromium marker file (synced from MinIO without binary) and remove it to trigger reinstall
 - fix(worker): fix Playwright install exit code detection — pipe to tail swallowed non-zero exit codes; now uses temp file for proper error propagation
+- fix(worker): add exec security=full and ask=off to worker-openclaw.json.tmpl to prevent approval timeout
+- fix(worker): background-patch exec-approvals.json after OpenClaw startup to ensure security=full defaults

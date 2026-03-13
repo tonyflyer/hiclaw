@@ -514,3 +514,55 @@ docker exec hiclaw-worker-<name> rm -f ~/skills/skills
 **Workaround**: Configure Workers to connect directly to the LLM endpoint (bypassing the ai-proxy Wasm plugin) by setting `baseUrl` in the Worker's `openclaw.json` to the proxy address instead of the AI Gateway domain. This sacrifices the centralized API key management benefit of the gateway but avoids the Wasm plugin incompatibility.
 
 **Note**: This only affects Workers. The Manager Agent uses the gateway normally for non-streaming requests.
+### Exec Tool Approval Timeout in Containers
+
+**Problem**: Worker exec tool commands time out after 120s waiting for approval, even though `exec-approvals.json` was created by `worker-entrypoint.sh` with `security: "full"`.
+
+**Root Cause**: OpenClaw overwrites `exec-approvals.json` on startup with its own default template (empty `defaults: {}`). The entrypoint writes the file BEFORE OpenClaw starts, but OpenClaw replaces it during initialization.
+
+**Solution** (two-layer fix):
+1. `worker-openclaw.json.tmpl` now includes `tools.exec.security: "full"` and `tools.exec.ask: "off"` directly in the config. These are hot-reloadable by OpenClaw.
+2. `worker-entrypoint.sh` launches a background patcher that waits for OpenClaw to create its default `exec-approvals.json`, then patches the `defaults` section with `security: "full"`.
+
+**Key files**:
+- `manager/agent/skills/worker-management/references/worker-openclaw.json.tmpl` — tools.exec config
+- `worker/scripts/worker-entrypoint.sh` — background patcher logic
+
+**If already deployed** (hotfix without rebuild):
+```bash
+docker exec hiclaw-worker-<name> python3 -c "
+import json
+for f in ['/root/hiclaw-fs/agents/<name>/openclaw.json']:
+    d = json.load(open(f))
+    d.setdefault('tools', {}).setdefault('exec', {}).update({'host': 'gateway', 'security': 'full', 'ask': 'off'})
+    json.dump(d, open(f, 'w'), indent=2)
+for f2 in ['/root/hiclaw-fs/agents/<name>/.openclaw/exec-approvals.json']:
+    d2 = json.load(open(f2))
+    d2['defaults'] = {'security': 'full', 'ask': 'off', 'askFallback': 'full', 'autoAllowSkills': True}
+    json.dump(d2, open(f2, 'w'), indent=2)
+"
+```
+
+**Note**: `tools.exec.security` and `tools.exec.ask` are dynamically hot-reloadable — no container restart needed after patching `openclaw.json`.
+
+### web_search Tool Requires Brave API Key
+
+**Problem**: OpenClaw's `web_search` tool returns instantly with no results.
+
+**Root Cause**: `web_search` requires a Brave Search API key. Without it, the tool returns empty immediately. `web_fetch` works without any API key.
+
+**Solution**: Configure Brave Search API key in Worker's `openclaw.json`:
+```json
+{
+  "tools": {
+    "web": {
+      "search": {
+        "apiKey": "YOUR_BRAVE_API_KEY"
+      }
+    }
+  }
+}
+```
+Or set `BRAVE_API_KEY` environment variable for the OpenClaw gateway process.
+
+**Workaround**: Use `web_fetch` for direct URL fetching (no API key needed) and `exec` with `curl` for more complex HTTP requests.
