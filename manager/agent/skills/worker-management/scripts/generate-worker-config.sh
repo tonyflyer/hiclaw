@@ -47,6 +47,10 @@ case "${MODEL_NAME}" in
         CTX=256000; MAX=128000 ;;
     glm-5|MiniMax-M2.5)
         CTX=200000; MAX=128000 ;;
+    qwen/qwen3-coder-30b|qwen/qwen3-coder-next|qwen3-coder-480b-a35b-instruct)
+        CTX=200000; MAX=128000 ;;
+    openai/gpt-oss-20b|openai/gpt-oss-120b)
+        CTX=200000; MAX=128000 ;;
     *)
         CTX=200000; MAX=128000 ;;
 esac
@@ -61,7 +65,7 @@ esac
 
 # Detect reasoning models: only models with native thinking/reasoning support
 case "${MODEL_NAME}" in
-    *-reasoner|*-thinking|o1*|o3*|o4*|claude-opus*|claude-sonnet*|qwen3*|deepseek-r1*)
+    *-reasoner|*-thinking|o1*|o3*|o4*|claude-opus*|claude-sonnet*|qwen3*|*/qwen3*|openai/gpt-oss*|deepseek-r1*)
         MODEL_REASONING=true ;;
     *)
         MODEL_REASONING=false ;;

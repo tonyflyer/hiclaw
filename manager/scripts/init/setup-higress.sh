@@ -159,6 +159,12 @@ if [ -n "${HICLAW_LLM_API_KEY}" ]; then
                 echo "${OPENAI_BASE_URL}" | grep -q '^http://' && { OC_PROTO="http"; OC_PORT="80"; }
                 OC_DOMAIN="${OC_URL_STRIP%%/*}"
                 echo "${OC_DOMAIN}" | grep -q ':' && { OC_PORT="${OC_DOMAIN##*:}"; OC_DOMAIN="${OC_DOMAIN%:*}"; }
+                # Extract URL path (everything after domain:port in the stripped URL)
+                if echo "${OC_URL_STRIP}" | grep -q '/'; then
+                    OC_URL_PATH="/${OC_URL_STRIP#*/}"
+                else
+                    OC_URL_PATH="/v1"
+                fi
 
                 # Resolve Docker Desktop host aliases to actual IP for Envoy/static service compatibility.
                 # Both docker.for.mac.localhost and host.docker.internal are Docker Desktop aliases
@@ -180,7 +186,7 @@ if [ -n "${HICLAW_LLM_API_KEY}" ]; then
                     higress_api POST /v1/service-sources "Registering openai-compat DNS service source" "${SVC_BODY}"
                 fi
 
-                PROVIDER_BODY="{\"type\":\"openai\",\"name\":\"openai-compat\",\"tokens\":[\"${HICLAW_LLM_API_KEY}\"],\"version\":0,\"protocol\":\"openai/v1\",\"tokenFailoverConfig\":{\"enabled\":false},\"rawConfigs\":{\"openaiCustomUrl\":\"http://${OC_DOMAIN}:${OC_PORT}/v1\",\"openaiCustomServiceName\":\"openai-compat.static\",\"openaiCustomServicePort\":\"${OC_PORT}\"}}"
+                PROVIDER_BODY="{\"type\":\"openai\",\"name\":\"openai-compat\",\"tokens\":[\"${HICLAW_LLM_API_KEY}\"],\"version\":0,\"protocol\":\"openai/v1\",\"tokenFailoverConfig\":{\"enabled\":false},\"rawConfigs\":{\"openaiCustomUrl\":\"${OC_PROTO}://${OC_DOMAIN}:${OC_PORT}${OC_URL_PATH}\",\"openaiCustomServiceName\":\"openai-compat.static\",\"openaiCustomServicePort\":\"${OC_PORT}\"}}"
                 existing_provider=$(higress_get /v1/ai/providers/openai-compat)
                 if [ -n "${existing_provider}" ]; then
                     higress_api PUT /v1/ai/providers/openai-compat "Updating LLM provider (openai-compat)" "${PROVIDER_BODY}"
@@ -190,9 +196,9 @@ if [ -n "${HICLAW_LLM_API_KEY}" ]; then
 
                 # Fix ai-proxy wasm config to use correct LLM URL
                 if [ -f "/data/wasmplugins/ai-proxy.internal.yaml" ]; then
-                    sed -i "s|openaiCustomUrl:.*|openaiCustomUrl: http://${OC_DOMAIN}:${OC_PORT}/v1|g" /data/wasmplugins/ai-proxy.internal.yaml 2>/dev/null || true
+                    sed -i "s|openaiCustomUrl:.*|openaiCustomUrl: ${OC_PROTO}://${OC_DOMAIN}:${OC_PORT}${OC_URL_PATH}|g" /data/wasmplugins/ai-proxy.internal.yaml 2>/dev/null || true
                     sed -i 's|url: oci://|url: file:///opt/hiclaw/wasm-plugins/|g' /data/wasmplugins/ai-proxy.internal.yaml 2>/dev/null || true
-                    log "Fixed ai-proxy wasm config (LLM URL: http://${OC_DOMAIN}:${OC_PORT}/v1)"
+                    log "Fixed ai-proxy wasm config (LLM URL: ${OC_PROTO}://${OC_DOMAIN}:${OC_PORT}${OC_URL_PATH})"
                 fi
 
                 # Remove key-auth plugin (wasm file not available)

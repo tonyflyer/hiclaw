@@ -6,7 +6,7 @@
 # MinIO sync, skills push, and container startup.
 #
 # Usage:
-#   create-worker.sh --name <NAME> [--model <MODEL_ID>] [--mcp-servers s1,s2] [--skills s1,s2] [--find-skills] [--skills-api-url <URL>] [--remote]
+#   create-worker.sh --name <NAME> [--model <MODEL_ID>] [--mcp-servers s1,s2] [--skills s1,s2] [--find-skills] [--skills-api-url <URL>] [--remote] [--soul <path>]
 #
 # Prerequisites:
 #   - SOUL.md must already exist at ~/hiclaw-fs/agents/<NAME>/SOUL.md
@@ -30,6 +30,7 @@ SKILLS_API_URL=""
 WORKER_RUNTIME="${HICLAW_DEFAULT_WORKER_RUNTIME:-openclaw}"   # openclaw | copaw
 CONSOLE_PORT=""             # copaw only: web console port (e.g. 8088)
 ENABLE_BROWSER=false        # openclaw only: enable Browser tool for web scraping
+SOUL_PATH=""               # optional: path to custom SOUL.md file
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -44,12 +45,13 @@ while [ $# -gt 0 ]; do
         KR|        --console-port) CONSOLE_PORT="$2"; shift 2 ;;
         --browser)    ENABLE_BROWSER=true; shift ;;
         --no-browser) ENABLE_BROWSER=false; shift ;;
+        --soul)       SOUL_PATH="$2"; shift 2 ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
 done
 
 if [ -z "${WORKER_NAME}" ]; then
-    XT|    echo "Usage: create-worker.sh --name <NAME> [--model <MODEL_ID>] [--mcp-servers s1,s2] [--skills s1,s2] [--find-skills] [--skills-api-url <URL>] [--remote] [--runtime openclaw|copaw] [--console-port <PORT>] [--browser|--no-browser]"
+    echo "Usage: create-worker.sh --name <NAME> [--model <MODEL_ID>] [--mcp-servers s1,s2] [--skills s1,s2] [--find-skills] [--skills-api-url <URL>] [--remote] [--runtime openclaw|copaw] [--console-port <PORT>] [--browser|--no-browser] [--soul <path>]"
     exit 1
 fi
 
@@ -97,7 +99,15 @@ log "Worker system ID: ${WORKER_ID}"
 CONSUMER_NAME="worker-${WORKER_ID}"
 SOUL_FILE="/root/hiclaw-fs/agents/${WORKER_ID}/SOUL.md"
 
-if [ ! -f "${SOUL_FILE}" ]; then
+if [ -n "${SOUL_PATH}" ]; then
+    # Custom SOUL.md provided via --soul parameter
+    if [ ! -f "${SOUL_PATH}" ]; then
+        _fail "SOUL.md file not found at: ${SOUL_PATH}"
+    fi
+    mkdir -p "$(dirname "${SOUL_FILE}")"
+    cp "${SOUL_PATH}" "${SOUL_FILE}"
+    log "Installed custom SOUL.md from ${SOUL_PATH}"
+elif [ ! -f "${SOUL_FILE}" ]; then
     # Check if SOUL.md exists under the display name (legacy compatibility)
     LEGACY_SOUL_FILE="/root/hiclaw-fs/agents/${WORKER_DISPLAY_NAME}/SOUL.md"
     if [ -f "${LEGACY_SOUL_FILE}" ]; then

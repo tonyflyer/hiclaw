@@ -488,3 +488,28 @@ docker exec hiclaw-worker-<name> rm -f ~/skills/skills
 - Failure to get admin token is non-fatal: a WARNING is logged and the room is still created
 
 **Known past bug (fixed)**: The original Step 2 JSON payload had duplicate `]` and `"preset"` lines, causing malformed JSON that silently failed room creation. Also, `ADMIN_USER` was not set (fixed by reading from `HICLAW_ADMIN_USER` env var). Both bugs are fixed in commit `2ffa70d`.
+
+### Envoy Proxy Interference (Higress Gateway)
+
+**Problem**: Docker Desktop on Mac injects `HTTP_PROXY` and `HTTPS_PROXY` (from Parallels) into container environment variables. Envoy (Higress Gateway) inherits these and routes upstream LLM requests through the proxy, causing connection timeouts (HTTP 503).
+
+**Symptom**: Workers get `503 upstream connect error` when calling LLM. Gateway log shows `dur=30000ms` (timeout). Direct `curl --noproxy '*'` from inside the container works fine.
+
+**Root Cause**: `start-manager-agent.sh` clears `http_proxy`/`https_proxy` for the OpenClaw agent process, but Envoy is started by supervisord BEFORE that script runs, so it inherits the container-level proxy variables.
+
+**Solution**: Added proxy-clearing environment variables (`HTTP_PROXY=""`, `HTTPS_PROXY=""`, `http_proxy=""`, `https_proxy=""`) to ALL Higress program sections in `manager/supervisord.conf`:
+- `higress-apiserver`
+- `higress-controller`
+- `higress-pilot`
+- `higress-gateway`
+- `higress-console`
+
+### AI Proxy Wasm Plugin Streaming Incompatibility
+
+**Problem**: The Higress ai-proxy Wasm plugin (v2.0.0) produces `event: error` at the end of streaming (SSE) responses when used with LM Studio as the upstream LLM provider.
+
+**Symptom**: Non-streaming requests return HTTP 400 with `{"error":""}`. Streaming requests start normally but terminate with `event: error` instead of `data: [DONE]`. OpenClaw receives 503 errors and retries in an infinite loop.
+
+**Workaround**: Configure Workers to connect directly to the LLM endpoint (bypassing the ai-proxy Wasm plugin) by setting `baseUrl` in the Worker's `openclaw.json` to the proxy address instead of the AI Gateway domain. This sacrifices the centralized API key management benefit of the gateway but avoids the Wasm plugin incompatibility.
+
+**Note**: This only affects Workers. The Manager Agent uses the gateway normally for non-streaming requests.
