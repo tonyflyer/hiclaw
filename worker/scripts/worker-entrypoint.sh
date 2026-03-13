@@ -86,12 +86,38 @@ log "Worker config pulled successfully"
 # Restore skills from MinIO if skills directory is empty but skills-lock.json exists
 if [ -f "${WORKSPACE}/skills-lock.json" ] && [ -z "$(ls -A ${WORKSPACE}/skills 2>/dev/null | grep -v file-sync)" ]; then
     log "Found skills-lock.json but skills directory is empty, restoring skills..."
-    cd "${WORKSPACE}" && skills experimental_install -y 2>/dev/null || log "Warning: skills restore failed, will need to reinstall"
+    fi
+
+# Create exec-approvals.json for container mode (no systemd, exec needs gateway mode)
+# This allows exec tool to work in Docker containers without systemctl
+mkdir -p "${HOME}/.openclaw"
+if [ ! -f "${HOME}/.openclaw/exec-approvals.json" ]; then
+    cat > "${HOME}/.openclaw/exec-approvals.json" << 'EOF'
+{
+  "security": "full",
+  "ask": "off",
+  "autoAllowSkills": true
+}
+EOF
+    log "Created exec-approvals.json for container mode"
 fi
 
-# Ensure hiclaw-sync symlink is functional (wrapper script calls workspace path)
-ln -sf "${WORKSPACE}/skills/file-sync/scripts/hiclaw-sync.sh" /usr/local/bin/hiclaw-sync 2>/dev/null || true
-
+log "HOME set to ${HOME} (workspace files will be synced to MinIO)"
+#MS|
+#KM|# Create exec-approvals.json for container mode (no systemd, exec needs gateway mode)
+#JB|# This allows exec tool to work in Docker containers without systemctl
+#JB|mkdir -p "${HOME}/.openclaw"
+#JB|if [ ! -f "${HOME}/.openclaw/exec-approvals.json" ]; then
+#JB|    cat > "${HOME}/.openclaw/exec-approvals.json" << 'EOF'
+#JB|{
+#JB|  "security": "full",
+#JB|  "ask": "off",
+#JB|  "autoAllowSkills": true
+#JB|}
+#JB|EOF
+#JB|    log "Created exec-approvals.json for container mode"
+#JB|fi
+#JB|
 log "HOME set to ${HOME} (workspace files will be synced to MinIO)"
 
 # ============================================================
@@ -146,9 +172,10 @@ fi
 # ============================================================
 if [ "${ENABLE_BROWSER}" = "true" ]; then
     PLAYWRIGHT_BIN="/opt/openclaw/node_modules/.bin/playwright-core"
-    CHROMIUM_MARKER="/root/.cache/ms-playwright/.chromium-installed"
+    CHROMIUM_MARKER="${HOME}/.cache/ms-playwright/.chromium-installed"
     if [ ! -f "${CHROMIUM_MARKER}" ] && [ -f "${PLAYWRIGHT_BIN}" ]; then
         log "Browser tool enabled — installing Playwright Chromium (first-time, may take a few minutes)..."
+        mkdir -p "$(dirname "${CHROMIUM_MARKER}")"
         if "${PLAYWRIGHT_BIN}" install --with-deps chromium 2>&1 | tail -5; then
             touch "${CHROMIUM_MARKER}"
             log "Playwright Chromium installed successfully"

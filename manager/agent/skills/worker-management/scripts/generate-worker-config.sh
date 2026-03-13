@@ -90,9 +90,19 @@ export MODEL_MAX_TOKENS="${MAX}"
 export MODEL_INPUT="${INPUT}"
 export WORKER_BROWSER_ENABLED="${BROWSER_ENABLED}"
 
+# Browser executable path: use Playwright's Chromium when browser is enabled
+if [ "${BROWSER_ENABLED}" = "true" ]; then
+    export WORKER_BROWSER_EXECUTABLE_PATH="${HOME}/.cache/ms-playwright/chromium-1208/chrome-linux/chrome"
+else
+    export WORKER_BROWSER_EXECUTABLE_PATH=""
+fi
+
+# Exec tool host: gateway mode works in containers without systemd
+export WORKER_EXEC_HOST="gateway"
+
 OUTPUT_DIR="/root/hiclaw-fs/agents/${WORKER_NAME}"
 mkdir -p "${OUTPUT_DIR}"
 
 envsubst < /opt/hiclaw/agent/skills/worker-management/references/worker-openclaw.json.tmpl > "${OUTPUT_DIR}/openclaw.json"
 
-log "Generated ${OUTPUT_DIR}/openclaw.json (model=${MODEL_NAME}, ctx=${CTX}, max=${MAX})"
+log "Generated ${OUTPUT_DIR}/openclaw.json (model=${MODEL_NAME}, ctx=${CTX}, max=${MAX}, browser=${BROWSER_ENABLED})"

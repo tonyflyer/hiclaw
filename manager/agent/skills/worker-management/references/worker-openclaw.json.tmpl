@@ -13,7 +13,8 @@
   "browser": {
     "enabled": ${WORKER_BROWSER_ENABLED},
     "headless": false,
-    "defaultProfile": "openclaw"
+    "defaultProfile": "openclaw",
+    "executablePath": "${WORKER_BROWSER_EXECUTABLE_PATH}"
   },
 
   "channels": {
@@ -78,6 +79,12 @@
     "resetByType": {
       "dm":    { "mode": "daily", "atHour": 4 },
       "group": { "mode": "idle",  "idleMinutes": 2880 }
+    }
+  },
+
+  "tools": {
+    "exec": {
+      "host": "${WORKER_EXEC_HOST:-gateway}"
     }
   },
 
