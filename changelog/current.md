@@ -26,5 +26,5 @@ Record image-affecting changes to `manager/`, `worker/`, `copaw/`, or `openclaw-
 - fix(manager): inject CSS fix for Element Web @mention autocomplete visibility — override contain:strict on .mx_RoomView_wrapper via nginx sub_filter
 - feat(manager): bundle Higress Wasm plugins (ai-proxy, ai-statistics) into image via Dockerfile COPY — eliminates manual docker cp injection and OCI download failures
 - fix(manager): clear HTTP_PROXY/HTTPS_PROXY environment variables for all Higress programs in supervisord.conf — prevents Docker Desktop (Parallels) proxy from interfering with Envoy upstream LLM connections
-- fix(manager): fix setup-higress.sh openaiCustomUrl to use dynamic protocol (OC_PROTO) and preserve URL path prefix (e.g. /lmstudio) instead of hardcoding http:// and dropping path
-- feat(manager): add --soul parameter to create-worker.sh for deploying custom SOUL.md to Workers during creation
+#WS|- feat(manager): add --soul parameter to create-worker.sh for deploying custom SOUL.md to Workers during creation
+#HB|- fix(worker): add browser.executablePath config for Playwright Chromium; add tools.exec.host=gateway to avoid systemctl; create exec-approvals.json at startup
