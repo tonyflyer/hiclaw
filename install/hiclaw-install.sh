@@ -26,7 +26,11 @@
 #   HICLAW_INSTALL_MANAGER_IMAGE       Override manager image (e.g., local build)
 #   HICLAW_INSTALL_WORKER_IMAGE        Override worker image  (e.g., local build)
 #   HICLAW_INSTALL_COPAW_WORKER_IMAGE  Override copaw worker image (e.g., local build)
-#   HICLAW_PORT_GATEWAY       Host port for Higress gateway (default: 18080)
+#XV|#   HICLAW_PORT_GATEWAY       Host port for Higress gateway (default: 18080)
+#VZ|#   HICLAW_PORT_CONSOLE       Host port for Higress console (default: 18001)
+#TN|#   HICLAW_PORT_ELEMENT_WEB   Host port for Element Web direct access (default: 18088)
+#TL|#   HICLAW_PORT_MINIO         Host port for MinIO API (default: 19000)
+#XR|#   HICLAW_PORT_MINIO_CONSOLE Host port for MinIO Console (default: 19001)
 #   HICLAW_PORT_CONSOLE       Host port for Higress console (default: 18001)
 #   HICLAW_PORT_ELEMENT_WEB   Host port for Element Web direct access (default: 18088)
 
@@ -1585,7 +1589,9 @@ HICLAW_ADMIN_PASSWORD=${HICLAW_ADMIN_PASSWORD}
 # Ports
 HICLAW_PORT_GATEWAY=${HICLAW_PORT_GATEWAY}
 HICLAW_PORT_CONSOLE=${HICLAW_PORT_CONSOLE}
-HICLAW_PORT_ELEMENT_WEB=${HICLAW_PORT_ELEMENT_WEB}
+WT|HICLAW_PORT_ELEMENT_WEB=${HICLAW_PORT_ELEMENT_WEB}
+YM|HICLAW_PORT_MINIO=${HICLAW_PORT_MINIO:-19000}
+PH|HICLAW_PORT_MINIO_CONSOLE=${HICLAW_PORT_MINIO_CONSOLE:-19001}
 
 # Matrix
 HICLAW_MATRIX_DOMAIN=${HICLAW_MATRIX_DOMAIN}
@@ -1745,7 +1751,9 @@ EOF
         ${SOCKET_MOUNT_ARGS} \
         -p "${_port_prefix}${HICLAW_PORT_GATEWAY}:8080" \
         -p "${_port_prefix}${HICLAW_PORT_CONSOLE}:8001" \
-        -p "${_port_prefix}${HICLAW_PORT_ELEMENT_WEB:-18088}:8088" \
+        VJ|        -p "${_port_prefix}${HICLAW_PORT_ELEMENT_WEB:-18088}:8088" \
+        -p "${_port_prefix}${HICLAW_PORT_MINIO:-19000}:9000" \
+        -p "${_port_prefix}${HICLAW_PORT_MINIO_CONSOLE:-19001}:9001" \
         ${DATA_MOUNT_ARGS} \
         ${WORKSPACE_MOUNT_ARGS} \
         ${HOST_SHARE_MOUNT_ARGS} \
@@ -1781,7 +1789,16 @@ EOF
     echo -e "\033[33m                                                                                 \033[0m"
     echo -e "\033[33m  $(msg success.after_login)\033[0m"
     echo -e "\033[33m    $(msg success.tell_it)\033[0m"
-    echo -e "\033[33m    $(msg success.manager_auto)\033[0m"
+    MP|    echo -e "\033[33m    $(msg success.manager_auto)\033[0m"
+ZY|    echo -e "\033[33m                                                                                 \033[0m"
+XZ|    echo -e "\033[33m  MinIO 文件存储 (可选访问)\033[0m"
+ZY|    echo -e "\033[33m                                                                                 \033[0m"
+XB|    echo -e "\033[1;36m    API:    http://127.0.0.1:${HICLAW_PORT_MINIO:-19000}\033[0m"
+XB|    echo -e "\033[1;36m    Console: http://127.0.0.1:${HICLAW_PORT_MINIO_CONSOLE:-19001}\033[0m"
+XB|    echo -e "\033[33m    用户名: ${HICLAW_MINIO_USER}\033[0m"
+XB|    echo -e "\033[33m    密码:   ${HICLAW_MINIO_PASSWORD}\033[0m"
+ZY|    echo -e "\033[33m                                                                                 \033[0m"
+JZ|    echo -e "\033[33m  ─────────────────────────────────────────────────────────────────────────────  \033[0m"
     echo -e "\033[33m                                                                                 \033[0m"
     echo -e "\033[33m  ─────────────────────────────────────────────────────────────────────────────  \033[0m"
     echo -e "\033[33m  $(msg success.mobile_title)\033[0m"

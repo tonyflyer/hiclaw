@@ -36,4 +36,7 @@ Record image-affecting changes to `manager/`, `worker/`, `copaw/`, or `openclaw-
 - fix(worker): detect stale Chromium marker file (synced from MinIO without binary) and remove it to trigger reinstall
 - fix(worker): fix Playwright install exit code detection — pipe to tail swallowed non-zero exit codes; now uses temp file for proper error propagation
 - fix(worker): add exec security=full and ask=off to worker-openclaw.json.tmpl to prevent approval timeout
-- fix(worker): background-patch exec-approvals.json after OpenClaw startup to ensure security=full defaults
+#ZT|- fix(worker): background-patch exec-approvals.json after OpenClaw startup to ensure security=full defaults
+#VR|#TH|- feat(install): expose MinIO API (19000) and Console (19001) ports by default — enables direct file system access from host
+#RH|#XM|- fix(worker): add --exclude ".agents" and --exclude ".openclaw" to mc mirror commands — prevents circular symlink (ELOOP) when syncing skills directory
+#XK|- fix(manager): add space before !important in Element Web CSS override — fixes @mention autocomplete popup visibility

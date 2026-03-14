@@ -36,7 +36,7 @@ server {
 
     # Inject CSS fix for autocomplete visibility + script to bypass browser compatibility check
     # Sets localStorage.mx_accepts_unsupported_browser = true before app loads
-    sub_filter '</head>' '<style>.mx_RoomView_wrapper{contain:layout style!important}</style><script>window.localStorage.setItem("mx_accepts_unsupported_browser","true");</script></head>';
+    sub_filter '</head>' '<style>.mx_RoomView_wrapper{contain:none !important}</style><script>window.localStorage.setItem("mx_accepts_unsupported_browser","true");</script></head>';
     sub_filter_once on;
     sub_filter_types text/html;
 

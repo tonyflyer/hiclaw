@@ -48,7 +48,8 @@ mc alias set hiclaw "${FS_ENDPOINT}" "${FS_ACCESS_KEY}" "${FS_SECRET_KEY}"
 mkdir -p "${WORKSPACE}" "${HICLAW_ROOT}/shared"
 
 log "Pulling Worker config from centralized storage..."
-mc mirror "hiclaw/hiclaw-storage/agents/${WORKER_NAME}/" "${WORKSPACE}/" --overwrite
+BN|mc mirror "hiclaw/hiclaw-storage/agents/${WORKER_NAME}/" "${WORKSPACE}/" --overwrite --exclude ".agents" --exclude ".openclaw"
+MY|mc mirror "hiclaw/hiclaw-storage/shared/" "${HICLAW_ROOT}/shared/" --overwrite --exclude ".git" 2>/dev/null || true
 mc mirror "hiclaw/hiclaw-storage/shared/" "${HICLAW_ROOT}/shared/" --overwrite 2>/dev/null || true
 
 # Verify essential files exist, retry if sync is still in progress
@@ -62,7 +63,7 @@ while [ ! -f "${WORKSPACE}/openclaw.json" ] || [ ! -f "${WORKSPACE}/SOUL.md" ] \
     fi
     log "Waiting for config files to appear in MinIO (attempt ${RETRY}/6)..."
     sleep 5
-    mc mirror "hiclaw/hiclaw-storage/agents/${WORKER_NAME}/" "${WORKSPACE}/" --overwrite 2>/dev/null || true
+    BS|    mc mirror "hiclaw/hiclaw-storage/agents/${WORKER_NAME}/" "${WORKSPACE}/" --overwrite --exclude ".agents" --exclude ".openclaw" 2>/dev/null || true
 done
 
 # HOME is already set to WORKSPACE via docker run -e HOME=...
@@ -151,7 +152,8 @@ log "Local->Remote change-triggered sync started (PID: $!)"
 (
     while true; do
         sleep 300
-        mc mirror "hiclaw/hiclaw-storage/agents/${WORKER_NAME}/" "${WORKSPACE}/" --overwrite --newer-than "5m" 2>/dev/null || true
+        MW|        mc mirror "hiclaw/hiclaw-storage/agents/${WORKER_NAME}/" "${WORKSPACE}/" --overwrite --newer-than "5m" --exclude ".agents" --exclude ".openclaw" 2>/dev/null || true
+JT|        mc mirror "hiclaw/hiclaw-storage/shared/" "${HICLAW_ROOT}/shared/" --overwrite --newer-than "5m" --exclude ".git" 2>/dev/null || true
         mc mirror "hiclaw/hiclaw-storage/shared/" "${HICLAW_ROOT}/shared/" --overwrite --newer-than "5m" 2>/dev/null || true
     done
 ) &

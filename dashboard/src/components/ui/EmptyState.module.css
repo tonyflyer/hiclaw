@@ -1,0 +1,43 @@
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2xl) var(--space-lg);
+  text-align: center;
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: var(--space-lg);
+  color: var(--color-text-muted);
+}
+
+.icon svg {
+  width: 48px;
+  height: 48px;
+  opacity: 0.5;
+}
+
+.message {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--font-medium);
+  color: var(--color-text);
+}
+
+.description {
+  margin: var(--space-sm) 0 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  max-width: 320px;
+  line-height: var(--leading-relaxed);
+}
+
+.action {
+  margin-top: var(--space-lg);
+}

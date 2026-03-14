@@ -1,0 +1,197 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  height: 100%;
+  overflow-y: auto;
+}
+
+/* Summary stats row */
+.summaryRow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-md);
+}
+
+.summaryCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  text-align: center;
+  transition: border-color var(--transition-fast);
+}
+
+.summaryCard:hover {
+  border-color: var(--color-border-light);
+}
+
+.summaryLabel {
+  display: block;
+  margin-bottom: var(--space-xs);
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.summaryValue {
+  display: block;
+  font-size: var(--text-xl);
+  font-weight: var(--font-bold);
+  color: var(--color-text);
+}
+
+/* Token distribution section */
+.tokenSection {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+}
+
+.sectionTitle {
+  margin: 0 0 var(--space-md);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--color-text);
+}
+
+.tokenBars {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.tokenBarRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.tokenBarLabel {
+  width: 80px;
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+
+.tokenBarContainer {
+  flex: 1;
+  height: 8px;
+  background: var(--color-surface-hover);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.tokenBar {
+  height: 100%;
+  border-radius: var(--radius-sm);
+  transition: width var(--transition-normal);
+}
+
+.tokenBarInput {
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+}
+
+.tokenBarOutput {
+  background: linear-gradient(90deg, #8b5cf6, #a78bfa);
+}
+
+.tokenBarCache {
+  background: linear-gradient(90deg, #10b981, #34d399);
+}
+
+.tokenBarValue {
+  width: 60px;
+  text-align: right;
+  font-size: var(--text-xs);
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+/* Agent breakdown section */
+.agentsSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.agentsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-md);
+}
+
+.agentCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  transition: border-color var(--transition-fast);
+}
+
+.agentCard:hover {
+  border-color: var(--color-border-light);
+}
+
+.agentHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-sm);
+}
+
+.agentName {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--color-text);
+}
+
+.agentCalls {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.agentMetrics {
+  display: flex;
+  gap: var(--space-md);
+  font-size: var(--text-xs);
+}
+
+.agentMetric {
+  display: flex;
+  flex-direction: column;
+}
+
+.agentMetricValue {
+  font-weight: var(--font-semibold);
+  color: var(--color-text);
+}
+
+.agentMetricLabel {
+  color: var(--color-text-secondary);
+}
+
+/* Empty state */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xl);
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.emptyIcon {
+  font-size: 32px;
+  margin-bottom: var(--space-md);
+  opacity: 0.5;
+}
+
+.emptyText {
+  margin: 0;
+  font-size: var(--text-sm);
+}
